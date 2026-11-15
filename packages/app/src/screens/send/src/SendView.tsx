@@ -519,6 +519,7 @@ export function SendView({ runtime, wallet, token, recipient, onBack, onDone }: 
         ownWallet={ownWalletFor(step.recipient)}
         signsOnDevice={isHardwareWalletMethod(wallet.method)}
         onBack={() => setStep({ ...INITIAL_STEP, recipient: step.recipient, amountDisplay: step.amountDisplay })}
+        onCancel={onBack}
         onSign={() => void handleSign()}
       />
     );
@@ -1138,6 +1139,7 @@ function ReviewStep({
   ownWallet,
   signsOnDevice,
   onBack,
+  onCancel,
   onSign,
 }: {
   token: TokenBalance | null;
@@ -1155,6 +1157,8 @@ function ReviewStep({
   /** A hardware wallet signs in the approval window the background opens; the popup may close when it takes focus. */
   signsOnDevice: boolean;
   onBack: () => void;
+  /** Leaves the send flow; `onBack` only returns to the form. */
+  onCancel: () => void;
   onSign: () => void;
 }) {
   const t = useT();
@@ -1198,7 +1202,7 @@ function ReviewStep({
             {warned ? null : <p className="text-center text-label text-muted">{t("send.cannotBeUndone")}</p>}
             <ReviewButtons
               secondaryLabel={t("transferReview.cancel")}
-              onSecondary={onBack}
+              onSecondary={onCancel}
               primaryLabel={
                 step.submitting
                   ? signsOnDevice

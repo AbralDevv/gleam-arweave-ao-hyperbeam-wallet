@@ -948,9 +948,9 @@ describe("SendView with a hardware wallet", () => {
 describe("SendView recipient lookalike warning", () => {
   const LOOKALIKE_OF = "AAAAAA2222222222222222222222222222222222222";
 
-  async function reviewWith(assessment: RecipientAssessment) {
+  async function reviewWith(assessment: RecipientAssessment, onBack = vi.fn()) {
     const send = routedSend({ assessRecipient: () => assessment });
-    renderSendView({ runtime: fakeRuntime({ send }), wallet: WALLET, token: null, onBack: vi.fn(), onDone: vi.fn() });
+    renderSendView({ runtime: fakeRuntime({ send }), wallet: WALLET, token: null, onBack, onDone: vi.fn() });
     fireEvent.change(screen.getByPlaceholderText("Paste an address"), { target: { value: RECENT_RECIPIENT_A } });
     fireEvent.change(screen.getByPlaceholderText("0"), { target: { value: "0.5" } });
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
@@ -981,12 +981,26 @@ describe("SendView recipient lookalike warning", () => {
     expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
   });
 
-  it("keeps Send black for a recipient sent to before, and Cancel goes back to compose", async () => {
+  it("keeps Send black for a recipient sent to before", async () => {
     await reviewWith({ firstTime: false, lookalikeOf: null });
     expect(screen.queryByText(/haven't sent to this address before/)).toBeNull();
     expect(screen.getByRole("button", { name: "Send" }).className).toContain("bg-primary-fill");
+  });
+
+  it("leaves the send flow on Cancel", async () => {
+    const onBack = vi.fn();
+    await reviewWith({ firstTime: false, lookalikeOf: null }, onBack);
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onBack).toHaveBeenCalledOnce();
+  });
+
+  it("returns to the form on the header back arrow", async () => {
+    const onBack = vi.fn();
+    await reviewWith({ firstTime: false, lookalikeOf: null }, onBack);
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(screen.queryByText("Review send")).toBeNull();
+    expect(screen.getByRole("button", { name: "Review" })).toBeTruthy();
+    expect(onBack).not.toHaveBeenCalled();
   });
 });
 
