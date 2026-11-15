@@ -94,6 +94,15 @@ import { CheckIcon, CopyIcon } from "@gleam/ui/src/primitives/copy-icons.tsx";
  */
 export type MainScreenTab = "tokens" | "collectibles" | "activity";
 
+/** A section tab: a chip in light, an underlined label in dark so it can't be mistaken for the chart's range chips. */
+function tabClassName(active: boolean): string {
+  return `rounded-md px-2.5 py-1 text-label phone:hit-target dark:rounded-none dark:px-0 dark:pb-2 dark:font-semibold ${
+    active
+      ? "bg-mist text-foreground dark:bg-transparent dark:shadow-[inset_0_-2px_0_var(--color-foreground)]"
+      : "text-muted hover:text-foreground dark:text-faint"
+  }`;
+}
+
 export interface MainScreenViewProps {
   runtime: RuntimePort;
   wallet: WalletSummary;
@@ -751,7 +760,7 @@ export function MainScreenView({
               className="flex min-w-0 items-center gap-2 rounded-lg py-1.5 pl-0 pr-1 phone:min-h-11 phone:gap-2.5"
             >
               <AccountAvatar svgMarkup={avatarSvg} label={t("mainScreen.avatarOf", { name: wallet.name })} size={24} />
-              <span className="truncate text-label">{wallet.name}</span>
+              <span className="truncate text-label dark:text-muted">{wallet.name}</span>
               <span className="truncate font-mono text-label text-faint">
                 {truncateAddress(wallet.address, 6)}
               </span>
@@ -912,22 +921,20 @@ export function MainScreenView({
           listDocked
             ? "gleam-dock-in fixed inset-x-0 bottom-0 top-[calc(4rem+var(--inset-top))] z-20 mx-auto max-w-[var(--content-max)] overflow-y-auto bg-background"
             : "min-h-[calc(100dvh-4rem)]"
-        }`}
+        } dark:rounded-t-[20px] dark:bg-surface dark:pt-2`}
         style={listDocked ? ({ "--dock-offset": `${listDockOffsetRef.current}px` } as CSSProperties) : undefined}
       >
         <div
           role="tablist"
           aria-label={t("mainScreen.tabsLabel")}
-          className="sticky top-0 z-10 flex items-center gap-1 bg-background pb-2.5 pt-1 phone:-mx-2.5 phone:pb-1 phone:pt-1"
+          className="sticky top-0 z-10 flex items-center gap-1 bg-background pb-2.5 pt-1 phone:-mx-2.5 phone:pb-1 phone:pt-1 dark:gap-5 dark:bg-surface dark:px-3.5 phone:dark:mx-0 phone:dark:px-0"
         >
           <button
             type="button"
             role="tab"
             aria-selected={activeTab === "tokens"}
             onClick={() => selectTab("tokens")}
-            className={`rounded-md px-2.5 py-1 text-label phone:hit-target ${
-              activeTab === "tokens" ? "bg-mist text-foreground" : "text-muted hover:text-foreground"
-            }`}
+            className={tabClassName(activeTab === "tokens")}
           >
             {t("mainScreen.tabTokens")}
           </button>
@@ -936,9 +943,7 @@ export function MainScreenView({
             role="tab"
             aria-selected={activeTab === "collectibles"}
             onClick={() => selectTab("collectibles")}
-            className={`rounded-md px-2.5 py-1 text-label phone:hit-target ${
-              activeTab === "collectibles" ? "bg-mist text-foreground" : "text-muted hover:text-foreground"
-            }`}
+            className={tabClassName(activeTab === "collectibles")}
           >
             {t("mainScreen.tabCollectibles")}
           </button>
@@ -947,9 +952,7 @@ export function MainScreenView({
             role="tab"
             aria-selected={activeTab === "activity"}
             onClick={() => selectTab("activity")}
-            className={`rounded-md px-2.5 py-1 text-label phone:hit-target ${
-              activeTab === "activity" ? "bg-mist text-foreground" : "text-muted hover:text-foreground"
-            }`}
+            className={tabClassName(activeTab === "activity")}
           >
             {t("mainScreen.tabActivity")}
           </button>
