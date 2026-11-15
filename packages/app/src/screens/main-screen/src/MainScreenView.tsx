@@ -718,7 +718,7 @@ export function MainScreenView({
   );
 
   return (
-    <div ref={rootRef} className="flex min-h-full flex-col">
+    <div ref={rootRef} className="flex min-h-full flex-col overflow-x-clip">
       {loadError ? (
         <NetworkErrorBanner
           onRetry={() => {
@@ -842,6 +842,7 @@ export function MainScreenView({
               masked={masked}
               onToggleMasked={displaySettings ? toggleMasked : undefined}
               layout={headerStyle}
+              chartClassName="dark:h-20"
               loading={portfolioHistoryQuery.isPending || (portfolioHistoryQuery.isFetching && !portfolioHasSeries)}
               cached={chartCached}
               cachedFetching={chartFetching}

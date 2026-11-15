@@ -1,5 +1,5 @@
 import { formatPercent } from "../../format/currency";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { DisplayCurrency, HeaderStyle, PortfolioScope } from "@gleam/core";
 import { currencyStep, formatCurrencyParts, formatCurrencyValue, HIDDEN_AMOUNT, type CurrencyValueParts } from "../../format/currency";
 import { animatedNumberTintStyle, useAnimatedNumber, type AnimatedNumberTrend } from "../../primitives/animated-number";
@@ -49,12 +49,17 @@ import { useUiLabels, useUiLocale } from "../../labels";
  * has a cached figure on screen while it's read again: the figures dim
  * lightly if that takes over a moment, and the total ticks once to the new figure.
  *
- * Color rule: reuses `--color-positive` for gains and `--color-negative`
- * for losses — both real `@theme` tokens, never `--color-beam-red`/
- * `--color-beam-green` (identity-only). Referenced as raw CSS custom
- * properties via inline `style`/SVG `fill`/`stroke` since `isPositive`
- * picks the color dynamically per render, and SVG attributes need a
- * color value, not a class name.
+ * Color rule: the %-change uses `--color-positive`/`--color-negative`,
+ * never `--color-beam-red`/`--color-beam-green` (identity-only). The line
+ * and area use `--color-chart-up`/`--color-chart-down`, which light maps to
+ * those same two and dark maps to the foreground, so in dark only the
+ * figure says which way it went. Referenced as raw CSS custom properties
+ * since `isPositive` picks per render and SVG attributes need a color
+ * value, not a class name.
+ *
+ * Dark also smooths the line, fades the area out toward the bottom, marks
+ * the period's opening value with a dotted line and the current value
+ * with a dot. These are `dark:` classes so light renders as before.
  */
 export interface PortfolioChartPoint {
   timestamp: number;
@@ -105,6 +110,8 @@ export interface PortfolioChartProps {
   masked?: boolean;
   onToggleMasked?: () => void;
   layout?: HeaderStyle;
+  /** Extra classes for the chart box, e.g. to bleed it past the caller's padding. */
+  chartClassName?: string;
   className?: string;
 }
 
@@ -131,11 +138,16 @@ const EMPTY_STATE_POINTS: PortfolioChartPoint[] = [
 
 const SCOPE_FLASH_MS = 2500;
 
-/** Maps a series to a `0..CHART_WIDTH x 0..CHART_HEIGHT` SVG polyline's points, flat-lining a single-point or zero-range series at the vertical midpoint rather than dividing by zero. */
-function buildLinePath(points: PortfolioChartPoint[]): string {
-  if (points.length === 0) return "";
+type ChartCoord = [x: number, y: number];
+
+/** Maps a series into the `0..CHART_WIDTH x 0..CHART_HEIGHT` box, flat-lining a single-point or zero-range series at the vertical midpoint rather than dividing by zero. */
+function chartCoords(points: PortfolioChartPoint[]): ChartCoord[] {
+  if (points.length === 0) return [];
   if (points.length === 1) {
-    return `0,${CHART_HEIGHT / 2} ${CHART_WIDTH},${CHART_HEIGHT / 2}`;
+    return [
+      [0, CHART_HEIGHT / 2],
+      [CHART_WIDTH, CHART_HEIGHT / 2],
+    ];
   }
 
   const minTimestamp = points[0]!.timestamp;
@@ -147,13 +159,50 @@ function buildLinePath(points: PortfolioChartPoint[]): string {
   const maxValue = Math.max(...values);
   const valueRange = maxValue - minValue || 1;
 
-  return points
-    .map((point) => {
-      const x = ((point.timestamp - minTimestamp) / timeRange) * CHART_WIDTH;
-      const y = CHART_HEIGHT - CHART_INSET_Y - ((point.value - minValue) / valueRange) * (CHART_HEIGHT - 2 * CHART_INSET_Y);
-      return `${x.toFixed(2)},${y.toFixed(2)}`;
-    })
-    .join(" ");
+  return points.map((point) => [
+    ((point.timestamp - minTimestamp) / timeRange) * CHART_WIDTH,
+    CHART_HEIGHT - CHART_INSET_Y - ((point.value - minValue) / valueRange) * (CHART_HEIGHT - 2 * CHART_INSET_Y),
+  ]);
+}
+
+/** An SVG polyline's `points` for the series. */
+function buildLinePath(points: PortfolioChartPoint[]): string {
+  return toPolyline(chartCoords(points));
+}
+
+function toPolyline(coords: ChartCoord[]): string {
+  return coords.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
+}
+
+/**
+ * A monotone cubic (Fritsch–Carlson) path through the coordinates: smooth,
+ * but never overshooting a peak or dip the data doesn't have.
+ */
+function toSmoothPath(coords: ChartCoord[]): string {
+  const n = coords.length;
+  if (n === 0) return "";
+  const f = (value: number) => value.toFixed(2);
+  if (n < 3) return `M${coords.map(([x, y]) => `${f(x)} ${f(y)}`).join("L")}`;
+  const slopes: number[] = [];
+  for (let i = 0; i < n - 1; i++) {
+    const dx = coords[i + 1]![0] - coords[i]![0] || 1;
+    slopes.push((coords[i + 1]![1] - coords[i]![1]) / dx);
+  }
+  const tangents = coords.map((_, i) => {
+    if (i === 0) return slopes[0]!;
+    if (i === n - 1) return slopes[n - 2]!;
+    const before = slopes[i - 1]!;
+    const after = slopes[i]!;
+    return before * after <= 0 ? 0 : (before + after) / 2;
+  });
+  let path = `M${f(coords[0]![0])} ${f(coords[0]![1])}`;
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = coords[i]!;
+    const [x1, y1] = coords[i + 1]!;
+    const third = (x1 - x0) / 3;
+    path += `C${f(x0 + third)} ${f(y0 + tangents[i]! * third)} ${f(x1 - third)} ${f(y1 - tangents[i + 1]! * third)} ${f(x1)} ${f(y1)}`;
+  }
+  return path;
 }
 
 /** Enough to keep the trend's shape without packing several points into each pixel, which reads as a thick, jagged line. */
@@ -200,6 +249,7 @@ export function PortfolioChart({
   masked = false,
   onToggleMasked,
   layout = "full",
+  chartClassName,
   className,
 }: PortfolioChartProps) {
   const compact = layout === "compact";
@@ -228,9 +278,16 @@ export function PortfolioChart({
   const isEmpty = currentValue === 0 && points.every((point) => point.value === 0);
   // A wallet holding nothing over this range has no change to show, so the % and range tabs give way to the placeholder.
   const showsHistory = loading || !isEmpty;
-  const linePoints = buildLinePath(downsample(points, compact ? SPARKLINE_POINTS : CHART_POINTS));
+  const coords = chartCoords(downsample(points, compact ? SPARKLINE_POINTS : CHART_POINTS));
+  const linePoints = toPolyline(coords);
   const areaPoints = linePoints ? `0,${CHART_HEIGHT} ${linePoints} ${CHART_WIDTH},${CHART_HEIGHT}` : "";
-  const lineColorVar = isPositive ? "var(--color-positive)" : "var(--color-negative)";
+  const smoothPath = toSmoothPath(coords);
+  const smoothArea = smoothPath ? `${smoothPath}L${CHART_WIDTH} ${CHART_HEIGHT}L0 ${CHART_HEIGHT}Z` : "";
+  const openY = coords[0]?.[1];
+  const lastCoord = coords[coords.length - 1];
+  const fillId = `portfolio-chart-fill-${useId()}`;
+  const changeColorVar = isPositive ? "var(--color-positive)" : "var(--color-negative)";
+  const lineColorVar = isPositive ? "var(--color-chart-up)" : "var(--color-chart-down)";
   const totalText = masked ? HIDDEN_AMOUNT : formatCurrencyValue(currentValue, currency, locale);
   // Both run on every render so hook order holds; masked figures never show a frame.
   const totalParts = formatCurrencyParts(currentValue, currency, locale);
@@ -265,7 +322,7 @@ export function PortfolioChart({
       <span
         aria-hidden={flash ? true : undefined}
         className={cn("transition-opacity duration-300", flash && "opacity-0")}
-        style={{ color: lineColorVar }}
+        style={{ color: changeColorVar }}
       >
         {formatPercent(change, locale)}
       </span>
@@ -315,7 +372,7 @@ export function PortfolioChart({
   );
 
   const chart = (
-    <ChartArea onToggle={onToggleScope ? toggleScope : undefined} scope={scope} compact={compact} actionLabel={scope === "all" ? labels.chart.showThisWallet : labels.chart.showAllWallets}>
+    <ChartArea onToggle={onToggleScope ? toggleScope : undefined} scope={scope} compact={compact} className={chartClassName} actionLabel={scope === "all" ? labels.chart.showThisWallet : labels.chart.showAllWallets}>
       {loading ? (
         // Faded: a chart is mostly white, so a full-strength block is heavier than what replaces it.
         <div className="h-full w-full gleam-shimmer rounded-md opacity-60" />
@@ -326,6 +383,8 @@ export function PortfolioChart({
       ) : isEmpty ? (
         <EmptyLine />
       ) : (
+        // The dot is positioned against this box, so padding on the chart area insets both together.
+        <div className="relative h-full w-full">
         <svg
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
           preserveAspectRatio="none"
@@ -334,8 +393,33 @@ export function PortfolioChart({
           role="img"
           aria-label={labels.chart.summary(totalText, formatPercent(change, locale), periodLabel)}
         >
-          {compact ? null : <polygon points={areaPoints} fill={lineColorVar} opacity={0.12} stroke="none" />}
+          {compact ? null : (
+            <>
+              <defs>
+                <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor={lineColorVar} style={{ stopOpacity: "var(--chart-fill-top)" }} />
+                  <stop offset="0.75" stopColor={lineColorVar} style={{ stopOpacity: "var(--chart-fill-end)" }} />
+                </linearGradient>
+              </defs>
+              <polygon className="dark:hidden" points={areaPoints} fill={`url(#${fillId})`} stroke="none" />
+              <path className="hidden dark:inline" d={smoothArea} fill={`url(#${fillId})`} stroke="none" />
+              {openY === undefined ? null : (
+                <line
+                  className="hidden text-faint dark:inline"
+                  x1={0}
+                  x2={CHART_WIDTH}
+                  y1={openY}
+                  y2={openY}
+                  stroke="currentColor"
+                  strokeWidth={1}
+                  strokeDasharray="2 4"
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
+            </>
+          )}
           <polyline
+            className="dark:hidden"
             points={linePoints}
             fill="none"
             stroke={lineColorVar}
@@ -344,7 +428,27 @@ export function PortfolioChart({
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
           />
+          <path
+            className="hidden dark:inline"
+            d={smoothPath}
+            fill="none"
+            stroke={lineColorVar}
+            strokeOpacity={0.85}
+            strokeWidth={1.75}
+            strokeLinejoin="round"
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
         </svg>
+      {/* An HTML dot, since the SVG stretches and would draw a circle as an ellipse. */}
+      {!compact && lastCoord ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute hidden h-[7px] w-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground shadow-[0_0_0_5px_color-mix(in_srgb,var(--color-foreground)_18%,transparent)] dark:block"
+          style={{ left: `${(lastCoord[0] / CHART_WIDTH) * 100}%`, top: `${(lastCoord[1] / CHART_HEIGHT) * 100}%` }}
+        />
+      ) : null}
+        </div>
       )}
     </ChartArea>
   );
@@ -394,7 +498,7 @@ export function PortfolioChart({
                 "rounded-md px-2.5 py-1 text-caption font-semibold phone:hit-target",
                 range === activeRange
                   ? "bg-mist text-foreground"
-                  : "text-muted hover:text-foreground",
+                  : "text-muted hover:text-foreground dark:text-faint",
               )}
             >
               {range}
@@ -491,12 +595,13 @@ interface ChartAreaProps {
   scope: PortfolioScope;
   compact: boolean;
   actionLabel: string;
+  className?: string;
   children: ReactNode;
 }
 
 /** The chart slot, full width or a sparkline beside the figures: a plain box, or a button over it when the scope toggle is enabled. */
-function ChartArea({ onToggle, scope, compact, actionLabel, children }: ChartAreaProps) {
-  const size = compact ? "h-8 w-32 flex-shrink-0" : "h-16 w-full phone:[@media(max-height:700px)]:h-12";
+function ChartArea({ onToggle, scope, compact, actionLabel, className, children }: ChartAreaProps) {
+  const size = cn(compact ? "h-8 w-32 flex-shrink-0" : cn("h-16 w-full phone:[@media(max-height:700px)]:h-12", className));
   if (!onToggle) return <div className={size}>{children}</div>;
 
   return (
