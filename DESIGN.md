@@ -134,33 +134,63 @@ The neutral foundation is refined and minimal, with separate tokens for structur
 - **Faint** `#a3a3a3` — Tertiary text, placeholder text
 
 **Dark Mode**
-- **Canvas** `#111111` — Outermost container background
-- **Background** `#111111` — Primary surface for content
-- **Surface** `#1c1c1c` — Elevated or grouped content areas
-- **Mist** `#1c1c1c` — Subtle background for inactive/secondary states
-- **Line** `#2a2a2a` — Dividers and borders
-- **Foreground** `#ffffff` — Primary text
-- **Muted** `#a3a3a3` — Secondary text, disabled states
-- **Faint** `#737373` — Tertiary text, placeholder text
 
-The neutral palette is deliberately high-contrast (7:1+) to ensure readability and accessibility in all contexts. Dark mode inverts the foundation while keeping the beam colors and semantic reds unchanged—the brand's identity and safety signals never waver.
+Dark mode has its own rules. It is not the light theme inverted.
+
+| Token | Dark | Level |
+|---|---|---|
+| **Background**, **Canvas** | `#0d0d0f` | 0: the window, header, balance and chart |
+| **Surface** | `#161618` | 1: the token sheet, cards |
+| **Mist** | `#1f1f22` | 2: tiles, active chips, row hover, logo plates |
+| **Line** | `#2a2a2e` | 3: hover on a level-2 tile, the rare divider |
+| **Foreground** | `#ededef` | Balance, names, fiat values |
+| **Muted** | `#a0a0a8` | Amounts, the wallet name, secondary text |
+| **Faint** | `#6b6b73` | Addresses, captions, inactive tabs and chips |
+| **Primary fill** | `#d4d4d8` | Buttons that commit: Confirm, Approve, Unlock |
+
+- **Elevation is lightness.** Shadows don't show on near-black, so each level up is a step lighter. Separate with a level change or spacing, not a border.
+- **One bright item per row.** The balance is the only display weight. A row's name and value are foreground; everything else drops back.
+- **No colour fill larger than a figure.** The portfolio chart is neutral (a smoothed foreground line, a fill that fades out, a dotted line at the period's opening value, a dot on the current value). Only the %-change says which way it went.
+- **Commit actions are bright.** Send and Receive are equal level-2 tiles on the main screen. The bright primary fill is kept for the button that commits.
+- **Two kinds of tab.** Section tabs (Tokens, Collectibles, Activity) are underlined labels. The chart's range picker uses chips.
+
+Layout rules that tokens can't carry use Tailwind's `dark:` variant, which matches `data-theme="dark"`.
+
+### Semantic Colors
+
+Red marks errors and the Irreversible risk tier only, never a status default or decoration. Routine notices use **Caution** or **Muted**.
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| **Warning** | `#ff1717` | `#f87171` | Warning and error text, icons |
+| **Warning fill** | `#c93a3f` | `#c93a3f` | Behind white text (destructive button), 5:1 |
+| **Warning surface** | `#fff5f5` | `#2a1515` | Critical notice background |
+| **Caution** | `#c2410c` | `#fb923c` | Worth reading, not a danger |
+| **Positive** | `#16a34a` | `#4cd98a` | Confirmed amounts, gains |
+| **Negative** | `#dc2626` | `#ff8a85` | Losses in the %-change |
+
+Beam red is identity only, never a warning. In dark mode, warning uses its own softer red.
 
 ### The Gleam Beam — Identity
 
 The five-stop beam is Gleam's signature visual element. It appears as a gradient divider, in loading states, and occasionally as accent highlights. Each segment has its own meaning within the context, but together they form a cohesive identity.
 
-- **Beam Red** `#ff1717` — Segment 1 (0–20%)
-- **Beam Purple** `#8b12ff` — Segment 2 (20–40%)
-- **Beam Sky** `#73c9e8` — Segment 3 (40–60%)
-- **Beam Yellow** `#ffe45c` — Segment 4 (60–80%)
-- **Beam Green** `#28f02d` — Segment 5 (80–100%)
+The beam has two sets. Dark mode uses its own: the same hues with less glare, so the beam sits on near-black instead of burning through it. Every beam, divider and beam-coloured accent reads the `--color-beam-*` tokens, so each theme gets its own set automatically.
+
+| Segment | Light | Dark |
+|---|---|---|
+| **Beam Red** (0–20%) | `#ff1717` | `#e5484d` |
+| **Beam Purple** (20–40%) | `#8b12ff` | `#9d5bd2` |
+| **Beam Sky** (40–60%) | `#73c9e8` | `#5bb3d9` |
+| **Beam Yellow** (60–80%) | `#ffe45c` | `#e3c14d` |
+| **Beam Green** (80–100%) | `#28f02d` | `#46c25a` |
 
 #### Using the Beam
 
 - **Dividers**: A thin 3px gradient bar separates major sections and creates visual breathing room
 - **Loading shimmer**: A subtle moving highlight travels across content being loaded, hinting at the beam's colors
 - **Accent never fills**: The beam colors are never used for large solid fills or buttons—they're always linear, moving, or small accent points
-- **Purple limitation**: Beam purple (`#8b12ff`) is not used for text on the dark canvas due to insufficient contrast; use it only for decorative or non-text contexts
+- **Purple limitation**: Beam purple is not used for text on the dark canvas; use it only for decorative or non-text contexts
 
 ## Typography
 

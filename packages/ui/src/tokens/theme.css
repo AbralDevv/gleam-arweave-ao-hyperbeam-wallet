@@ -43,6 +43,11 @@
   --color-mist: #f5f5f5;
   --color-line: #e5e5e5;
   --color-foreground: #111111;
+  /* The primary button's fill; in dark mode a step below the foreground so it is not the brightest thing on screen. */
+  --color-primary-fill: #111111;
+  /* A disabled primary button. Light matches the old 50% fade. Dark is a quiet fill, since a faded light button reads as muddy grey. */
+  --color-primary-disabled: #888888;
+  --color-primary-disabled-text: #c4c4c4;
   --color-muted: #737373;
   --color-faint: #a3a3a3;
 
@@ -59,6 +64,8 @@
    * shared meaning.
    */
   --color-warning: #ff1717;
+  /* Behind white text, e.g. the destructive button; #ff1717 gives white only 3.9:1. */
+  --color-warning-fill: #c93a3f;
   --color-warning-surface: #fff5f5;
   --color-warning-border: #ffd6d6;
 
@@ -96,6 +103,12 @@
    * "no identity meaning" framing exactly.
    */
   --color-negative: #dc2626;
+
+  /* The portfolio chart's line and area. Light colours it by direction; dark keeps it neutral. Fill values are opacities at the top and bottom of the area. */
+  --color-chart-up: var(--color-positive);
+  --color-chart-down: var(--color-negative);
+  --chart-fill-top: 0.12;
+  --chart-fill-end: 0.12;
 
   /* ---- Typography ---- */
   --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -159,27 +172,49 @@
  * selector, is what actually makes them apply only when `data-theme`
  * is present.
  *
- * Only the foundation neutrals invert — the five beam colors and the
- * warning-red carry over unchanged (same hex) per guidelines.md's
- * explicit rule, with the one stated exception: beam-purple is
- * non-text-safe on the dark canvas (3.3:1 against #111111), so it is
- * not redefined here (redefining its hex would be wrong) but flagged in
- * this file for any component choosing text color from the beam set.
+ * Dark mode has its own rules, not inverted light values:
+ * - Elevation is lightness. Background is the lowest level, surface one
+ *   step up (the token sheet), mist the next (tiles, chips, plates) and
+ *   line the highest (hover on a mist tile). Borders stay rare.
+ * - Text has four steps: foreground, muted, faint, then disabled.
+ * - No colour fill larger than a figure. The chart is neutral; the
+ *   %-change alone says which way it went.
+ * - The beam has its own dark set: the same hues with less glare, so it
+ *   sits on near-black instead of burning through it. Beam-purple is not
+ *   text-safe here.
  */
 [data-theme="dark"] {
-  --color-canvas: #111111;
-  --color-background: #111111;
-  --color-surface: #1c1c1c;
-  --color-mist: #1c1c1c;
-  --color-line: #2a2a2a;
-  --color-foreground: #ffffff;
-  --color-muted: #a3a3a3;
-  --color-faint: #737373;
+  --color-canvas: #0d0d0f;
+  --color-background: #0d0d0f;
+  --color-surface: #161618;
+  --color-mist: #1f1f22;
+  --color-line: #2a2a2e;
+  --color-foreground: #ededef;
+  --color-primary-fill: #d4d4d8;
+  --color-primary-disabled: #1f1f22;
+  --color-primary-disabled-text: #6b6b73;
+  --color-muted: #a0a0a8;
+  --color-faint: #6b6b73;
 
-  --color-shimmer-base: #1c1c1c;
+  --color-shimmer-base: #1f1f22;
 
-  --color-warning-surface: #2a1414;
-  --color-warning-border: #4a1f1f;
+  --color-beam-red: #e5484d;
+  --color-beam-purple: #9d5bd2;
+  --color-beam-sky: #5bb3d9;
+  --color-beam-yellow: #e3c14d;
+  --color-beam-green: #46c25a;
+
+  --color-chart-up: var(--color-foreground);
+  --color-chart-down: var(--color-foreground);
+  --chart-fill-top: 0.1;
+  --chart-fill-end: 0;
+
+  --color-warning: #f87171;
+  --color-warning-fill: #c93a3f;
+  --color-warning-surface: #2a1515;
+  --color-warning-border: #4a2020;
+  --color-positive: #4cd98a;
+  --color-negative: #ff8a85;
   --color-caution: #fb923c;
   --color-caution-surface: #2a1c0f;
 }
@@ -262,6 +297,9 @@ body:has([data-layout="popup"]) {
  * utility, and generated after the plain ones so it wins.
  */
 @custom-variant phone (&:where([data-layout="phone"], [data-layout="phone"] *));
+
+/* `dark:` styles a utility only under `data-theme="dark"`, for the few dark rules a token can't carry (layout, not colour). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
  * The shell must set `viewport-fit=cover` for `env(safe-area-inset-*)` to
