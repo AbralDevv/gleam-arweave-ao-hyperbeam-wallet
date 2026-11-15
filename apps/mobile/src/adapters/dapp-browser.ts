@@ -2,7 +2,7 @@ import type { DappBrowserPort } from "@gleam/app/src/app-platform/types.ts";
 import type { DappViewPlugin } from "@gleam/dapp-view";
 import type { DappBridge } from "./dapp-bridge";
 
-export type DappBrowserPlugin = Pick<DappViewPlugin, "goBack" | "reload" | "setFrame" | "clearData" | "addListener">;
+export type DappBrowserPlugin = Pick<DappViewPlugin, "goBack" | "reload" | "setFrame" | "clearData" | "pageIcon" | "addListener">;
 
 export interface MobileDappBrowser extends DappBrowserPort {
   /** The approval sheet is up, so the page stays hidden under it however the screen asks. */
@@ -41,6 +41,10 @@ export function createDappBrowser({ bridge, plugin }: { bridge: DappBridge; plug
       // The plugin closes the view itself, which would leave the runtime holding a tab that is gone.
       await bridge.close();
       await plugin.clearData();
+    },
+    async pageIcon() {
+      const { origin, dataUrl } = await plugin.pageIcon();
+      return origin !== null && dataUrl !== null ? { origin, dataUrl } : null;
     },
     setSheetUp(up) {
       sheetUp = up;

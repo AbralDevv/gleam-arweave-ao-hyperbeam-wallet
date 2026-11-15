@@ -219,6 +219,8 @@ export interface DappBrowserPort {
   setHidden(hidden: boolean): Promise<void>;
   /** Wipes the page view's cookies, storage and caches, closing any open page first. */
   clearSiteData(): Promise<void>;
+  /** The open page's icon as an image data URL, with the origin it was read from; `null` when it has none. */
+  pageIcon(): Promise<{ origin: string; dataUrl: string } | null>;
   /** Returns the unsubscribe function. */
   subscribe(listener: (event: DappBrowserEvent) => void): () => void;
 }

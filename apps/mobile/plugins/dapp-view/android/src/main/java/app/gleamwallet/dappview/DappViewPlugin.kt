@@ -15,6 +15,7 @@ import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.WebViewListener
 import com.getcapacitor.annotation.CapacitorPlugin
+import org.json.JSONObject
 import kotlin.math.roundToInt
 
 /**
@@ -157,6 +158,18 @@ class DappViewPlugin : Plugin() {
             view.deliver(data, targetOrigin) { delivered ->
                 call.resolve(JSObject().put("delivered", delivered))
             }
+        }
+    }
+
+    @PluginMethod
+    fun pageIcon(call: PluginCall) {
+        bridge.executeOnMainThread {
+            val view = dappView
+            if (view == null) {
+                call.resolve(JSObject().put("origin", JSONObject.NULL).put("dataUrl", JSONObject.NULL))
+                return@executeOnMainThread
+            }
+            view.pageIcon { call.resolve(it) }
         }
     }
 

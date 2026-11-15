@@ -223,11 +223,19 @@ export function BrowserView({ runtime, onBack, initialUrl, onOpenConnectedApp, o
 
   const toggleSaved = () => {
     if (!currentUrl || !origin) return;
-    runtime
-      .send(saved ? { type: "removeBrowserSite", payload: { origin } } : { type: "saveBrowserSite", payload: { url: currentUrl } })
-      .then(() => sites.reload())
-      .catch(() => undefined);
+    const url = currentUrl;
+    const request = saved
+      ? runtime.send({ type: "removeBrowserSite", payload: { origin } })
+      : savedIcon(origin).then((icon) => runtime.send({ type: "saveBrowserSite", payload: icon ? { url, icon } : { url } }));
+    request.then(() => sites.reload()).catch(() => undefined);
   };
+
+  /** The page's icon, if it is still on `site`; saving never waits on or fails for it. */
+  const savedIcon = (site: string) =>
+    browser.pageIcon().then(
+      (icon) => (icon && icon.origin === site ? icon.dataUrl : undefined),
+      () => undefined,
+    );
 
   const removeSaved = (site: string) => {
     runtime
@@ -305,6 +313,7 @@ export function BrowserView({ runtime, onBack, initialUrl, onOpenConnectedApp, o
               query={text}
               saved={sites.saved}
               recent={sites.recent}
+              icons={sites.icons}
               onOpen={open}
               onRemoveSaved={removeSaved}
               onClearSiteData={platform.capabilities.dappBrowser ? () => browser.clearSiteData() : undefined}

@@ -29,7 +29,7 @@ function setup(dappBrowser: boolean) {
     send: vi.fn(async ({ type }: { type: string }) => {
       if (type === "getState") return state;
       if (type === "getThemePreference") return { theme: "light" };
-      if (type === "listBrowserSites") return { saved: [], recent: [] };
+      if (type === "listBrowserSites") return { saved: [], recent: [], icons: {} };
       if (type === "getPasskeyStatus") return { enrolled: false };
       if (type === "getBalance") return "0";
       if (type === "getTokenBalances" || type === "getConnectedApps") return [];
@@ -46,6 +46,7 @@ function setup(dappBrowser: boolean) {
     setFrame: async () => {},
     setHidden: async () => {},
     clearSiteData: async () => {},
+    pageIcon: async () => null,
     subscribe: () => () => {},
   };
   vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });

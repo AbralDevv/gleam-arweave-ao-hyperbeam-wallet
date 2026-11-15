@@ -161,6 +161,15 @@ internal class DappWebView(
         view.evaluateJavascript(script) { result -> delivery.finish(result == "true") }
     }
 
+    fun pageIcon(completion: (JSObject) -> Unit) {
+        val view = webView
+        if (view == null || closed) {
+            completion(JSObject().put("origin", JSONObject.NULL).put("dataUrl", JSONObject.NULL))
+            return
+        }
+        PageIcon.read(view, completion)
+    }
+
     /** A destroyed view never answers its pending `evaluateJavascript` calls. */
     private fun finishDeliveries() {
         deliveries.toList().forEach { it.finish(false) }

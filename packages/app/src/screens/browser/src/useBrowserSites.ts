@@ -4,9 +4,11 @@ import type { RuntimePort } from "@gleam/core";
 export interface BrowserSites {
   saved: string[];
   recent: string[];
+  /** A saved site's stored icon, by origin. */
+  icons: Record<string, string>;
 }
 
-const NONE: BrowserSites = { saved: [], recent: [] };
+const NONE: BrowserSites = { saved: [], recent: [], icons: {} };
 
 /** The saved and recent origins, most recent first. A failed read leaves them empty. */
 export function useBrowserSites(runtime: RuntimePort) {

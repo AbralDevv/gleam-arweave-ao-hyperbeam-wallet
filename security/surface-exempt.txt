@@ -136,6 +136,10 @@ packages/app/src/App.tsx The shared shell; mounts the listed approval, onboardin
 packages/app/src/pointer-focus.ts Focus-ring styling; decides nothing.
 packages/app/src/theme.tsx Theme context and document attribute; display only.
 packages/app/src/screens/browser/index.tsx A screen outside the key, signing and approval paths.
+packages/app/src/screens/browser/icons/ao.svg A bundled image the start screen draws; no script.
+packages/app/src/screens/browser/icons/bazar.svg A bundled image the start screen draws; no script.
+packages/app/src/screens/browser/icons/permatell.svg A bundled image the start screen draws; no script.
+packages/app/src/screens/browser/src/built-in-icons.ts A screen outside the key, signing and approval paths.
 packages/app/src/screens/browser/src/StartScreen.tsx A screen outside the key, signing and approval paths.
 packages/app/src/screens/browser/src/useBrowserSites.ts A screen outside the key, signing and approval paths.
 packages/app/src/screens/collectibles/index.tsx A screen outside the key, signing and approval paths.

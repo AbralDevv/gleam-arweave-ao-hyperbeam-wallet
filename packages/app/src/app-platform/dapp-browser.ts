@@ -13,5 +13,6 @@ export const unavailableDappBrowser: DappBrowserPort = {
   setFrame: unavailable,
   setHidden: unavailable,
   clearSiteData: unavailable,
+  pageIcon: unavailable,
   subscribe: () => () => {},
 };
