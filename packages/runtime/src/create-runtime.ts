@@ -640,6 +640,7 @@ export function createRuntime(platform: Platform): Runtime {
     getActivity: (data) => reads.getActivity(data),
     getPortfolioHistory: (data) => reads.getPortfolioHistory(data),
     getTokenPrices: (data) => reads.getTokenPrices(data),
+    getTokenPriceHistory: (data) => reads.getTokenPriceHistory(data),
     getConnectedApps: () => approval.getConnectedApps(),
     listContacts: () => contacts.listContacts(),
     listBrowserSites: () => browserSites.listBrowserSites(),

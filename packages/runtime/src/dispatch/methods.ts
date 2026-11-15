@@ -318,6 +318,7 @@ export const BACKGROUND_MESSAGES = {
   getActivity: EXTENSION,
   getPortfolioHistory: EXTENSION,
   getTokenPrices: EXTENSION,
+  getTokenPriceHistory: EXTENSION,
   getConnectedApps: EXTENSION,
   listContacts: EXTENSION,
   listBrowserSites: EXTENSION,

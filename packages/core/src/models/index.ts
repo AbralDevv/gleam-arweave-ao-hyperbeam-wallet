@@ -111,6 +111,7 @@ export type {
   PortfolioScope,
   PortfolioHistoryPoint,
   PortfolioHistory,
+  TokenPriceHistory,
 } from "./portfolio-history";
 export {
   PROVIDER_METHODS,

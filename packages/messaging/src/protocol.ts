@@ -30,6 +30,7 @@ import type {
   PortfolioHistoryRange,
   PortfolioScope,
   ScanStats,
+  TokenPriceHistory,
   SecurityPhrase,
   ThemeSettings,
   PendingTransfer,
@@ -192,6 +193,13 @@ export interface ProtocolMap {
    * priced from its own orderbook; otherwise it has none.
    */
   getTokenPrices(req: { currency: DisplayCurrency; processIds?: string[] }): TokenPrice[];
+  /**
+   * One token's price over `range` in `currency`, for the token details
+   * chart. `processId` is `null` for AR. A token without a market price
+   * listing, or a range its sources can't serve, comes back with
+   * `series: []`.
+   */
+  getTokenPriceHistory(req: { processId: string | null; range: PortfolioHistoryRange; currency: DisplayCurrency }): TokenPriceHistory;
   getLockSettings(): LockSettings;
   getNetworkSettings(): NetworkSettings;
   /**
