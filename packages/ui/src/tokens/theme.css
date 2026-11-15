@@ -104,6 +104,12 @@
    */
   --color-negative: #dc2626;
 
+  /* The portfolio chart's line and area. Light colours it by direction; dark keeps it neutral. Fill values are opacities at the top and bottom of the area. */
+  --color-chart-up: var(--color-positive);
+  --color-chart-down: var(--color-negative);
+  --chart-fill-top: 0.12;
+  --chart-fill-end: 0.12;
+
   /* ---- Typography ---- */
   --font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -166,31 +172,49 @@
  * selector, is what actually makes them apply only when `data-theme`
  * is present.
  *
- * Dark mode is softened, not inverted: no pure white or near-black, and
- * the warning red gets its own value because the saturated beam red glows
- * on a dark canvas. The beam colors stay the same in both themes;
- * beam-purple is not text-safe on the dark canvas.
+ * Dark mode has its own rules, not inverted light values:
+ * - Elevation is lightness. Background is the lowest level, surface one
+ *   step up (the token sheet), mist the next (tiles, chips, plates) and
+ *   line the highest (hover on a mist tile). Borders stay rare.
+ * - Text has four steps: foreground, muted, faint, then disabled.
+ * - No colour fill larger than a figure. The chart is neutral; the
+ *   %-change alone says which way it went.
+ * - The beam has its own dark set: the same hues with less glare, so it
+ *   sits on near-black instead of burning through it. Beam-purple is not
+ *   text-safe here.
  */
 [data-theme="dark"] {
-  --color-canvas: #171717;
-  --color-background: #171717;
-  --color-surface: #212121;
-  --color-mist: #212121;
-  --color-line: #2e2e2e;
-  --color-foreground: #e5e5e5;
-  --color-primary-fill: #d4d4d4;
-  --color-primary-disabled: #262626;
-  --color-primary-disabled-text: #808080;
-  --color-muted: #a3a3a3;
-  --color-faint: #737373;
+  --color-canvas: #0d0d0f;
+  --color-background: #0d0d0f;
+  --color-surface: #161618;
+  --color-mist: #1f1f22;
+  --color-line: #2a2a2e;
+  --color-foreground: #ededef;
+  --color-primary-fill: #d4d4d8;
+  --color-primary-disabled: #1f1f22;
+  --color-primary-disabled-text: #6b6b73;
+  --color-muted: #a0a0a8;
+  --color-faint: #6b6b73;
 
-  --color-shimmer-base: #212121;
+  --color-shimmer-base: #1f1f22;
+
+  --color-beam-red: #e5484d;
+  --color-beam-purple: #9d5bd2;
+  --color-beam-sky: #5bb3d9;
+  --color-beam-yellow: #e3c14d;
+  --color-beam-green: #46c25a;
+
+  --color-chart-up: var(--color-foreground);
+  --color-chart-down: var(--color-foreground);
+  --chart-fill-top: 0.1;
+  --chart-fill-end: 0;
 
   --color-warning: #f87171;
   --color-warning-fill: #c93a3f;
   --color-warning-surface: #2a1515;
   --color-warning-border: #4a2020;
-  --color-positive: #4ade80;
+  --color-positive: #4cd98a;
+  --color-negative: #ff8a85;
   --color-caution: #fb923c;
   --color-caution-surface: #2a1c0f;
 }
@@ -273,6 +297,9 @@ body:has([data-layout="popup"]) {
  * utility, and generated after the plain ones so it wins.
  */
 @custom-variant phone (&:where([data-layout="phone"], [data-layout="phone"] *));
+
+/* `dark:` styles a utility only under `data-theme="dark"`, for the few dark rules a token can't carry (layout, not colour). */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /*
  * The shell must set `viewport-fit=cover` for `env(safe-area-inset-*)` to
