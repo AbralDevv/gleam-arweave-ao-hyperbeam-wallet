@@ -5,6 +5,7 @@ import { currencyStep, formatCurrencyParts, formatCurrencyValue, HIDDEN_AMOUNT, 
 import { animatedNumberTintStyle, useAnimatedNumber, type AnimatedNumberTrend } from "../../primitives/animated-number";
 import { cn } from "../../primitives/cn";
 import { NetworkErrorBanner } from "./NetworkErrorBanner";
+import { buildLinePath, CHART_HEIGHT, CHART_WIDTH, chartCoordinates, downsample, toPolyline, toSmoothPath } from "./chart-path";
 import { useUiLabels, useUiLocale } from "../../labels";
 
 /**
@@ -115,11 +116,6 @@ export interface PortfolioChartProps {
   className?: string;
 }
 
-const CHART_WIDTH = 100;
-const CHART_HEIGHT = 40;
-/** Keeps the highest and lowest points off the box's edges, where half the stroke would be clipped flat. */
-const CHART_INSET_Y = 3;
-
 /**
  * Fed through the same `buildLinePath` used for real data — a gentle
  * hand-authored wave rather than a flat line, so the shimmer has a line
@@ -138,96 +134,9 @@ const EMPTY_STATE_POINTS: PortfolioChartPoint[] = [
 
 const SCOPE_FLASH_MS = 2500;
 
-type ChartCoord = [x: number, y: number];
-
-/** Maps a series into the `0..CHART_WIDTH x 0..CHART_HEIGHT` box, flat-lining a single-point or zero-range series at the vertical midpoint rather than dividing by zero. */
-function chartCoords(points: PortfolioChartPoint[]): ChartCoord[] {
-  if (points.length === 0) return [];
-  if (points.length === 1) {
-    return [
-      [0, CHART_HEIGHT / 2],
-      [CHART_WIDTH, CHART_HEIGHT / 2],
-    ];
-  }
-
-  const minTimestamp = points[0]!.timestamp;
-  const maxTimestamp = points[points.length - 1]!.timestamp;
-  const timeRange = maxTimestamp - minTimestamp || 1;
-
-  const values = points.map((point) => point.value);
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values);
-  const valueRange = maxValue - minValue || 1;
-
-  return points.map((point) => [
-    ((point.timestamp - minTimestamp) / timeRange) * CHART_WIDTH,
-    CHART_HEIGHT - CHART_INSET_Y - ((point.value - minValue) / valueRange) * (CHART_HEIGHT - 2 * CHART_INSET_Y),
-  ]);
-}
-
-/** An SVG polyline's `points` for the series. */
-function buildLinePath(points: PortfolioChartPoint[]): string {
-  return toPolyline(chartCoords(points));
-}
-
-function toPolyline(coords: ChartCoord[]): string {
-  return coords.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
-}
-
-/**
- * A monotone cubic (Fritsch–Carlson) path through the coordinates: smooth,
- * but never overshooting a peak or dip the data doesn't have.
- */
-function toSmoothPath(coords: ChartCoord[]): string {
-  const n = coords.length;
-  if (n === 0) return "";
-  const f = (value: number) => value.toFixed(2);
-  if (n < 3) return `M${coords.map(([x, y]) => `${f(x)} ${f(y)}`).join("L")}`;
-  const slopes: number[] = [];
-  for (let i = 0; i < n - 1; i++) {
-    const dx = coords[i + 1]![0] - coords[i]![0] || 1;
-    slopes.push((coords[i + 1]![1] - coords[i]![1]) / dx);
-  }
-  const tangents = coords.map((_, i) => {
-    if (i === 0) return slopes[0]!;
-    if (i === n - 1) return slopes[n - 2]!;
-    const before = slopes[i - 1]!;
-    const after = slopes[i]!;
-    return before * after <= 0 ? 0 : (before + after) / 2;
-  });
-  let path = `M${f(coords[0]![0])} ${f(coords[0]![1])}`;
-  for (let i = 0; i < n - 1; i++) {
-    const [x0, y0] = coords[i]!;
-    const [x1, y1] = coords[i + 1]!;
-    const third = (x1 - x0) / 3;
-    path += `C${f(x0 + third)} ${f(y0 + tangents[i]! * third)} ${f(x1 - third)} ${f(y1 - tangents[i + 1]! * third)} ${f(x1)} ${f(y1)}`;
-  }
-  return path;
-}
-
 /** Enough to keep the trend's shape without packing several points into each pixel, which reads as a thick, jagged line. */
 const SPARKLINE_POINTS = 32;
 const CHART_POINTS = 90;
-
-/**
- * Averages a series into `maxPoints` equal buckets, keeping the last
- * point exact so the line still ends on the current value.
- */
-function downsample(points: PortfolioChartPoint[], maxPoints: number): PortfolioChartPoint[] {
-  if (points.length <= maxPoints) return points;
-  const bucketSize = points.length / (maxPoints - 1);
-  const result: PortfolioChartPoint[] = [];
-  for (let bucket = 0; bucket < maxPoints - 1; bucket++) {
-    const slice = points.slice(Math.floor(bucket * bucketSize), Math.floor((bucket + 1) * bucketSize));
-    if (slice.length === 0) continue;
-    result.push({
-      timestamp: slice[0]!.timestamp,
-      value: slice.reduce((sum, point) => sum + point.value, 0) / slice.length,
-    });
-  }
-  result.push(points[points.length - 1]!);
-  return result;
-}
 
 export function PortfolioChart({
   points,
@@ -278,12 +187,12 @@ export function PortfolioChart({
   const isEmpty = currentValue === 0 && points.every((point) => point.value === 0);
   // A wallet holding nothing over this range has no change to show, so the % and range tabs give way to the placeholder.
   const showsHistory = loading || !isEmpty;
-  const coords = chartCoords(downsample(points, compact ? SPARKLINE_POINTS : CHART_POINTS));
+  const coords = chartCoordinates(downsample(points, compact ? SPARKLINE_POINTS : CHART_POINTS));
   const linePoints = toPolyline(coords);
   const areaPoints = linePoints ? `0,${CHART_HEIGHT} ${linePoints} ${CHART_WIDTH},${CHART_HEIGHT}` : "";
   const smoothPath = toSmoothPath(coords);
   const smoothArea = smoothPath ? `${smoothPath}L${CHART_WIDTH} ${CHART_HEIGHT}L0 ${CHART_HEIGHT}Z` : "";
-  const openY = coords[0]?.[1];
+  const openY = coords[0]?.y;
   const lastCoord = coords[coords.length - 1];
   const fillId = `portfolio-chart-fill-${useId()}`;
   const changeColorVar = isPositive ? "var(--color-positive)" : "var(--color-negative)";
@@ -445,7 +354,7 @@ export function PortfolioChart({
         <span
           aria-hidden="true"
           className="pointer-events-none absolute hidden h-[7px] w-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground shadow-[0_0_0_5px_color-mix(in_srgb,var(--color-foreground)_18%,transparent)] dark:block"
-          style={{ left: `${(lastCoord[0] / CHART_WIDTH) * 100}%`, top: `${(lastCoord[1] / CHART_HEIGHT) * 100}%` }}
+          style={{ left: `${(lastCoord.x / CHART_WIDTH) * 100}%`, top: `${(lastCoord.y / CHART_HEIGHT) * 100}%` }}
         />
       ) : null}
         </div>
