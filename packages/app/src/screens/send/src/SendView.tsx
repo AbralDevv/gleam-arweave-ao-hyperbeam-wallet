@@ -34,6 +34,7 @@ import { feeFiatText } from "../../../transfer-review/model";
 import { validateSendAmount } from "../../activity/src/validateSendAmount";
 import { amountSchema, firstIssueMessage, recipientSchema } from "./sendFormSchema";
 import { TokenInfoPanel } from "./TokenInfoPanel";
+import { hasPriceHistory, TokenPriceChart } from "./TokenPriceChart";
 import { useLookalikeOf } from "./useLookalikeOf";
 import { fetchSendFeeQuote, useRecipientAssessment, useSendFeeQuote } from "./useSendQuotes";
 import { isTokenHidden, readRowVisibility, sendTokenLogo, shownTokenLogo } from "../../../token-visibility";
@@ -321,6 +322,7 @@ export function SendView({ runtime, wallet, token, recipient, onBack, onDone }: 
 
     return (
       <ComposeStep
+        runtime={runtime}
         wallet={wallet}
         token={selectedToken}
         balancesQuery={balancesQuery}
@@ -535,6 +537,7 @@ export function SendView({ runtime, wallet, token, recipient, onBack, onDone }: 
 }
 
 function ComposeStep({
+  runtime,
   wallet,
   token,
   balancesQuery,
@@ -564,6 +567,7 @@ function ComposeStep({
   onConfirmSaveAddress,
   savingAddress,
 }: {
+  runtime: RuntimePort;
   wallet: WalletSummary;
   token: TokenBalance | null;
   balancesQuery: UseQueryResult<WalletBalances>;
@@ -674,6 +678,11 @@ function ComposeStep({
             balanceDisplay={balanceDisplay}
             balanceValue={balanceValue}
             priceDisplay={price !== undefined && currency !== undefined && currency !== ticker ? formatCurrencyValue(price, currency) : undefined}
+            chart={
+              currency !== undefined && currency !== ticker && hasPriceHistory(token?.processId ?? null) ? (
+                <TokenPriceChart runtime={runtime} processId={token?.processId ?? null} currency={currency} />
+              ) : null
+            }
           />
         </div>
       </div>

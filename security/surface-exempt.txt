@@ -37,6 +37,8 @@ packages/app/src/screens/points/src/useCopy.ts A screen outside the key, signing
 packages/app/src/screens/points/src/usePoints.ts A screen outside the key, signing and approval paths.
 packages/app/src/screens/send/src/SendView.tsx The send form; transfer-review (listed) shows what is sent and the background checks it.
 packages/app/src/screens/send/src/TokenInfoPanel.tsx A screen outside the key, signing and approval paths.
+packages/app/src/screens/send/src/TokenPriceChart.tsx A screen outside the key, signing and approval paths.
+packages/app/src/screens/send/src/useTokenPriceHistory.ts A screen outside the key, signing and approval paths.
 packages/app/src/screens/send/src/useLookalikeOf.ts A screen outside the key, signing and approval paths.
 packages/app/src/screens/send/src/useSendQuotes.ts A screen outside the key, signing and approval paths.
 packages/app/src/security-phrase-icon.ts Display preferences and share text.
