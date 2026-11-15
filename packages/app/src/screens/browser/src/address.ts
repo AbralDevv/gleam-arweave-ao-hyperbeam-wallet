@@ -1,5 +1,17 @@
-/** The built-in dApps, hardcoded so no server can change the list. */
-export const BUILT_IN_SITES: readonly string[] = ["https://bazar.arweave.net/", "https://ao.arweave.net/"];
+/** The name a site sorts by: its host without a leading `www.`. */
+function sortName(url: string): string {
+  return new URL(url).host.replace(/^www\./, "");
+}
+
+/**
+ * The built-in dApps, hardcoded so no server can change the list, and
+ * sorted here so an entry can be added anywhere.
+ */
+export const BUILT_IN_SITES: readonly string[] = [
+  "https://bazar.arweave.net/",
+  "https://ao.arweave.net/",
+  "https://www.permatell.xyz/",
+].sort((a, b) => sortName(a).localeCompare(sortName(b)));
 
 export interface SiteHost {
   /** `URL.host`, which is the punycode form for an internationalised name. */
