@@ -130,6 +130,8 @@ export interface ReadTokenBalanceOptions {
   fetchImpl?: typeof fetch;
   /** Names the token in the error, e.g. its ticker. */
   label?: string;
+  /** Nodes an L1 token is read from besides the gateway; `L1_TOKEN_NODE_URLS` by default. */
+  l1NodeUrls?: readonly string[];
 }
 
 /**
@@ -146,7 +148,7 @@ export interface ReadTokenBalanceOptions {
 export async function readTokenBalance(options: ReadTokenBalanceOptions): Promise<string> {
   const { processId, address, transport, gatewayUrl, peerUrl, label } = options;
   const fetchImpl = options.fetchImpl ?? fetch;
-  if (transport === "l1") return readL1Balance(processId, address, gatewayUrl, peerUrl, fetchImpl, label);
+  if (transport === "l1") return readL1Balance(processId, address, gatewayUrl, peerUrl, fetchImpl, label, options.l1NodeUrls);
   const failures: string[] = [];
   if (peerUrl !== null) {
     try {
@@ -166,7 +168,7 @@ export async function readTokenBalance(options: ReadTokenBalanceOptions): Promis
 
 /**
  * The balance of an `arweave-scheduler@1.0` process, from its `now/as/balance`
- * path. Tries the gateway's HyperBEAM node, then `L1_TOKEN_NODE_URLS`, then
+ * path. Tries the gateway's HyperBEAM node, then `l1NodeUrls`, then
  * the peer; legacy-AO peers such as state.forward.computer answer 403 or 500
  * for these processes. The first number wins, asking first whichever host
  * has scheduled the most messages for the process: each node picks up L1
@@ -188,10 +190,11 @@ export async function readL1Balance(
   peerUrl: string | null,
   fetchImpl: typeof fetch = fetch,
   label?: string,
+  l1NodeUrls: readonly string[] = L1_TOKEN_NODE_URLS,
 ): Promise<string> {
   const hosts = await furthestAheadFirst(
     processId,
-    [...new Set([gatewayUrl, ...L1_TOKEN_NODE_URLS, peerUrl].filter((url): url is string => url !== null).map(trimTrailingSlash))],
+    [...new Set([gatewayUrl, ...l1NodeUrls, peerUrl].filter((url): url is string => url !== null).map(trimTrailingSlash))],
     fetchImpl,
   );
   const failures: string[] = [];

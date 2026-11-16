@@ -187,7 +187,7 @@ describe("readTokenBalance", () => {
     await expect(
       readTokenBalance({ processId: PID, address: ADDRESS, transport: "l1", gatewayUrl: GATEWAY, peerUrl: SFC, fetchImpl, label: "FODDER" }),
     ).rejects.toThrow(
-      "Couldn't read your FODDER balance. Tried arweave.net (HTTP 500), alpha.neo.zephyrdev.xyz (HTTP 500), charlie.neo2.zephyrdev.xyz (HTTP 500), state.forward.computer (HTTP 403).",
+      "Couldn't read your FODDER balance. Tried arweave.net (HTTP 500), alpha.neo.zephyrdev.xyz (HTTP 500), charlie.neo2.zephyrdev.xyz (HTTP 500), hb.arweave.net (HTTP 500), up.arweave.net (HTTP 500), state.forward.computer (HTTP 403).",
     );
   });
 });

@@ -1,5 +1,5 @@
-import { COMMUNITY_HYPERBEAM_PEER_URLS, type NetworkSettings, type StoragePort, type TimerPort } from "@gleam/core";
-import { discoverHyperBeamPeers, stripTrailingSlashes } from "@gleam/core/src/ao/peer-discovery.ts";
+import { COMMUNITY_HYPERBEAM_PEER_URLS, L1_TOKEN_NODE_URLS, type NetworkSettings, type StoragePort, type TimerPort } from "@gleam/core";
+import { discoverHyperBeamPeers, findL1TokenNodes, stripTrailingSlashes } from "@gleam/core/src/ao/peer-discovery.ts";
 import { updateStored } from "./storage-update";
 import { NETWORK_SETTINGS_KEY } from "./storage-keys";
 
@@ -13,6 +13,8 @@ const DISCOVERY_INTERVAL_MS = 24 * 60 * 60 * 1000;
 export interface DiscoveredPeers {
   at: number;
   urls: string[];
+  /** The community and discovered peers that compute `arweave-scheduler@1.0` processes (`findL1TokenNodes`). */
+  l1Urls?: string[];
 }
 
 /**
@@ -85,6 +87,16 @@ async function readStoredPeerUrls(storage: StoragePort): Promise<string[]> {
   }
 }
 
+/**
+ * Where L1 token reads go besides the gateway: `L1_TOKEN_NODE_URLS`, then
+ * the peers the last discovery found serving them.
+ */
+export async function readL1NodeUrls(storage: StoragePort): Promise<string[]> {
+  const found = (await readDiscoveredPeers(storage))?.l1Urls;
+  const urls = Array.isArray(found) ? found.filter((url): url is string => typeof url === "string" && url.startsWith("https://")) : [];
+  return [...new Set([...L1_TOKEN_NODE_URLS, ...urls])];
+}
+
 /** Reads the last discovery result, if any. */
 export async function readDiscoveredPeers(storage: StoragePort): Promise<DiscoveredPeers | null> {
   try {
@@ -95,9 +107,9 @@ export async function readDiscoveredPeers(storage: StoragePort): Promise<Discove
 }
 
 /**
- * Re-runs discovery when the stored result is over a day old. An empty
- * result never overwrites a non-empty one, so a gateway outage doesn't
- * wipe the list.
+ * Re-runs discovery, and the L1 probe over the community and discovered
+ * peers, when the stored result is over a day old. An empty result never
+ * overwrites a non-empty one, so an outage doesn't wipe either list.
  */
 export async function refreshDiscoveredPeersIfDue(
   storage: StoragePort,
@@ -108,10 +120,17 @@ export async function refreshDiscoveredPeersIfDue(
   try {
     const existing = await readDiscoveredPeers(storage);
     if (existing && now() - existing.at < DISCOVERY_INTERVAL_MS) return;
-    const urls = await discoverHyperBeamPeers({ gatewayUrl: await gatewayUrl(), fetchImpl });
-    if (urls.length === 0 && existing && existing.urls.length > 0) return;
+    const found = await discoverHyperBeamPeers({ gatewayUrl: await gatewayUrl(), fetchImpl });
+    const urls = found.length === 0 && existing && existing.urls.length > 0 ? existing.urls : found;
+    const known = new Set(L1_TOKEN_NODE_URLS);
+    const l1Found = await findL1TokenNodes({
+      candidates: [...COMMUNITY_HYPERBEAM_PEER_URLS, ...urls].filter((url) => !known.has(url)),
+      fetchImpl,
+    });
+    const l1Urls = l1Found.length === 0 && existing?.l1Urls?.length ? existing.l1Urls : l1Found;
+    if (found.length === 0 && l1Found.length === 0 && existing) return;
     // eslint-disable-next-line gleam/no-storage-read-modify-write -- a cache fill from the network
-    await storage.set<DiscoveredPeers>(DISCOVERED_PEERS_KEY, { at: now(), urls });
+    await storage.set<DiscoveredPeers>(DISCOVERED_PEERS_KEY, { at: now(), urls, l1Urls });
   } catch (error) {
     console.error("HyperBEAM peer discovery failed:", error);
   }

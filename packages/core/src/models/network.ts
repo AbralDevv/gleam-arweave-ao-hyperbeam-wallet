@@ -73,16 +73,27 @@ export const COMMUNITY_HYPERBEAM_PEER_URLS: readonly string[] = [
 ];
 
 /**
- * HyperBEAM nodes that compute `arweave-scheduler@1.0` processes. A
- * gateway's own answer for these processes comes and goes: arweave.net
- * has been seen flipping between a balance and an HTML 404 for the same
- * URL within minutes. They answer `Access-Control-Allow-Origin: *`, so
- * these public reads need no host permission.
+ * HyperBEAM nodes that compute `arweave-scheduler@1.0` processes, each a
+ * separate node identity. A gateway's own answer for these processes comes
+ * and goes: arweave.net has been seen flipping between a balance and an
+ * HTML 404 for the same URL within minutes, and lagging a transfer by many
+ * blocks. They answer `Access-Control-Allow-Origin: *`, so these public
+ * reads need no host permission. Peer discovery adds the peers that pass
+ * `L1_CANARY_PROCESS_ID` (runtime `peers.ts`); this list is the seed.
  */
 export const L1_TOKEN_NODE_URLS: readonly string[] = [
   "https://alpha.neo.zephyrdev.xyz",
   "https://charlie.neo2.zephyrdev.xyz",
+  "https://hb.arweave.net",
+  "https://up.arweave.net",
 ];
+
+/**
+ * A long-lived `arweave-scheduler@1.0` token. A node that answers its
+ * current slot computes these processes; one that follows only some
+ * processes doesn't, and couldn't serve most tokens either.
+ */
+export const L1_CANARY_PROCESS_ID = "hmW7EXCHRzfC6YAE8FKInptdS8-6BOl3fxjZfxmAOpY";
 
 /**
  * ANS-104 bundler that bundled `dispatch` items are posted to.

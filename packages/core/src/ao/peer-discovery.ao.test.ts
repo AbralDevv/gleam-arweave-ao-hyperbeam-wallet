@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { discoverHyperBeamPeers, normalizePeerUrl } from "./peer-discovery";
+import { discoverHyperBeamPeers, findL1TokenNodes, normalizePeerUrl } from "./peer-discovery";
+import { L1_CANARY_PROCESS_ID } from "../models/network";
 
 function record(url: string, owner: string, timestamp: number) {
   return { cursor: `${owner}-${timestamp}`, node: { id: `${owner}-${timestamp}`, owner: { address: owner }, block: { timestamp }, tags: [{ name: "Url", value: url }] } };
@@ -63,5 +64,32 @@ describe("discoverHyperBeamPeers", () => {
       throw new TypeError("Failed to fetch");
     }) as unknown as typeof fetch;
     await expect(discoverHyperBeamPeers({ gatewayUrl: "https://gw.test", fetchImpl })).resolves.toEqual([]);
+  });
+});
+
+describe("findL1TokenNodes", () => {
+  it("keeps the candidates that answer the canary's slot with a number, in order", async () => {
+    const answers: Record<string, () => Response> = {
+      "https://l1.test": () => new Response("1509"),
+      "https://html.test": () => new Response("<!DOCTYPE html><html></html>"),
+      "https://forbidden.test": () => new Response("1509", { status: 403 }),
+      "https://also-l1.test": () => new Response(" 12\n"),
+    };
+    const calls: string[] = [];
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      calls.push(url);
+      if (url.startsWith("https://down.test")) throw new TypeError("fetch failed");
+      return answers[new URL(url).origin]!();
+    }) as typeof fetch;
+
+    const nodes = await findL1TokenNodes({
+      candidates: ["https://l1.test/", "https://html.test", "https://down.test", "https://forbidden.test", "https://also-l1.test", "https://l1.test"],
+      fetchImpl,
+    });
+
+    expect(nodes).toEqual(["https://l1.test", "https://also-l1.test"]);
+    expect(calls).toContain(`https://l1.test/${L1_CANARY_PROCESS_ID}~process@1.0/slot/current`);
+    expect(calls.filter((url) => url.startsWith("https://l1.test"))).toHaveLength(1);
   });
 });

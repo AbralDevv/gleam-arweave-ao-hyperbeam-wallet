@@ -19,6 +19,8 @@ export interface DiscoverCollectiblesOptions {
   concurrency?: number;
   /** Past this, discovery stops fetching and returns what it has confirmed. */
   budgetMs?: number;
+  /** As in `readL1Balance`. */
+  l1NodeUrls?: readonly string[];
 }
 
 const DEFAULTS = { maxPages: 5, maxCandidates: 300, concurrency: 6, budgetMs: 60_000 };
@@ -83,7 +85,7 @@ export async function discoverCollectibles(options: DiscoverCollectiblesOptions)
   const checks = await mapLimit(uniques, concurrency, async (id) => {
     if (Date.now() >= deadline) return null;
     try {
-      return await readL1Balance(id, address, gatewayUrl, peerUrl, fetchImpl);
+      return await readL1Balance(id, address, gatewayUrl, peerUrl, fetchImpl, undefined, options.l1NodeUrls);
     } catch {
       return undefined;
     }

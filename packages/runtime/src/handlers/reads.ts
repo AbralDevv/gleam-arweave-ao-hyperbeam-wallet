@@ -38,9 +38,9 @@ import {
   recordPriceSample,
   type HistoricalPricePoint,
 } from "@gleam/core/src/pricing/index.ts";
-import { DEFAULT_HYPERBEAM_PEER_URLS, L1_TOKEN_NODE_URLS, POINTS_API_URL, isFiatCurrency, isValidNetworkSettings } from "@gleam/core";
+import { DEFAULT_HYPERBEAM_PEER_URLS, POINTS_API_URL, isFiatCurrency, isValidNetworkSettings } from "@gleam/core";
 import { updateStored } from "../storage-update";
-import { mergeDiscoveredPeers, readDismissedPeers, readExtraPeerUrls } from "../peers";
+import { mergeDiscoveredPeers, readDismissedPeers, readExtraPeerUrls, readL1NodeUrls } from "../peers";
 import type {
   ActivityEntry,
   ActivityPage,
@@ -326,12 +326,14 @@ export class ReadsHandler {
    * active one is down. An L1 token reads the peer only as a last resort
    * after the gateway and L1 nodes, so it gets one pass.
    */
-  private readBalance(
+  private async readBalance(
     settings: NetworkSettings,
     options: Omit<ReadTokenBalanceOptions, "gatewayUrl" | "peerUrl">,
   ): Promise<string> {
     const peers = peerFailoverOrder(settings);
-    const read = (peerUrl: string | null) => readTokenBalance({ ...options, gatewayUrl: settings.gatewayUrl, peerUrl });
+    const l1NodeUrls = options.transport === "l1" ? await readL1NodeUrls(this.storage) : undefined;
+    const read = (peerUrl: string | null) =>
+      readTokenBalance({ ...options, gatewayUrl: settings.gatewayUrl, peerUrl, ...(l1NodeUrls ? { l1NodeUrls } : {}) });
     if (peers.length === 0 || options.transport === "l1") return read(settings.activePeerUrl);
     return withPeerFailover(peers, read);
   }
@@ -381,8 +383,9 @@ export class ReadsHandler {
         if (settings.activePeerUrl === null) {
           throw new Error(userErrorMessage("noPeerConfigured"));
         }
+        const l1NodeUrls = await readL1NodeUrls(this.storage);
         const discovered = await withPeerFailover(peerFailoverOrder(settings), (peerUrl) =>
-          discoverCollectibles({ address: req.address, gatewayUrl: settings.gatewayUrl, peerUrl }),
+          discoverCollectibles({ address: req.address, gatewayUrl: settings.gatewayUrl, peerUrl, l1NodeUrls }),
         );
         // A send still pending hasn't reached the asset yet, so its balance
         // reads as held. It stays off the list until the send settles.
@@ -779,9 +782,10 @@ export class ReadsHandler {
       settings.gatewayUrl,
     ).catch(() => new Map<string, number>());
     const swapHeights = new Map<string, number>();
+    const l1NodeUrls = await readL1NodeUrls(this.storage);
     await Promise.all(
       [...new Set(l1Entries.flatMap((entry) => (entry.token ? [entry.token] : [])))].map(async (id) => {
-        for (const node of L1_TOKEN_NODE_URLS) {
+        for (const node of l1NodeUrls) {
           try {
             swapHeights.set(id, await readTokenSwapHeight(id, node));
             return;
@@ -938,13 +942,7 @@ export class ReadsHandler {
         if (metadata?.transport !== "l1" || metadata.assetClass !== "unique") return null;
         const known = cached.get(id);
         if (!known) {
-          const quantity = await readTokenBalance({
-            processId: id,
-            address,
-            transport: "l1",
-            gatewayUrl: settings.gatewayUrl,
-            peerUrl: settings.activePeerUrl,
-          }).catch(() => "0");
+          const quantity = await this.readBalance(settings, { processId: id, address, transport: "l1" }).catch(() => "0");
           if (BigInt(quantity) === 0n) return null;
         }
         const collectible: CollectibleRef = known
