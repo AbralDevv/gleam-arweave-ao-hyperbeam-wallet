@@ -63,6 +63,7 @@ export const USER_ERRORS = {
   backupFileMissing: "No backup found in this account.",
   backupFileCorrupt: "This backup can't be read.",
   backupWrongPassword: "That password didn't open this backup.",
+  backupOtherPassword: "This account's backup uses a different wallet password.",
   passkeyBadResponse: "The passkey didn't return what Gleam needs.",
   passkeyNotSetUp: "No passkey is set up for Gleam. Unlock with your password.",
   passkeyWrongCredential: "That isn't the passkey set up for Gleam. Try again, or use your password.",

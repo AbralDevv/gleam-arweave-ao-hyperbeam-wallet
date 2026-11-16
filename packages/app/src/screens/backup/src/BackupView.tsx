@@ -24,6 +24,7 @@ export function backupSummary(t: TFunction, status: BackupStatus): string {
   if (!status.enabled) return t("backup.off");
   if (status.problem === "signIn") return t("backup.needsSignIn");
   if (status.problem === "missing") return t("backup.notFound");
+  if (status.problem === "otherPassword") return t("backup.otherPassword");
   return status.lastBackupAt === null ? t("backup.never") : relativeTime(t, status.lastBackupAt);
 }
 

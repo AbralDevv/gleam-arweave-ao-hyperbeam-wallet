@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
-import { bytesToBase64, bytesToBase64Url, decodeBackupFile, type Wallet } from "@gleam/core";
+import { bytesToBase64, bytesToBase64Url, decodeBackupFile, encodeBackupFile, newBackupId, type Wallet } from "@gleam/core";
 import { Keyring } from "@gleam/core/signer";
 import { userErrorMessage } from "@gleam/core/src/models/user-errors.ts";
 import { InMemoryCloudAccount, InMemoryCloudFile, InMemoryStorage, InMemoryTimer } from "../../testing";
@@ -302,6 +302,36 @@ describe("BackupHandler: two devices", () => {
     const fresh = device(target.cloud.account);
     await fresh.backup.restore({ password: PASSWORD });
     expect(names(fresh)).toEqual(["Main", "Watched"]);
+  });
+});
+
+describe("BackupHandler: another vault's backup", () => {
+  /** A backup this vault's password can't open: its key is bound to another backup id. */
+  async function foreignFile(): Promise<Uint8Array<ArrayBuffer>> {
+    const other = await backedUp();
+    const file = decodeBackupFile(other.cloud.account.file!.bytes)!;
+    return new Uint8Array(encodeBackupFile({ ...file, header: { ...file.header, backupId: newBackupId() } }));
+  }
+
+  it("refuses to set up over it, and leaves it in the account", async () => {
+    const account = new InMemoryCloudAccount();
+    const bytes = await foreignFile();
+    account.file = { bytes, updatedAt: 1 };
+    const target = await unlocked(account, otherVault);
+    await expect(target.backup.setUp({ password: PASSWORD })).rejects.toThrow(userErrorMessage("backupOtherPassword"));
+    expect(account.file?.bytes).toEqual(bytes);
+    expect(target.storage.entries.has(BACKUP_KEY)).toBe(false);
+  });
+
+  it("stops syncing when it takes this backup's place, and never writes over it", async () => {
+    const target = await backedUp();
+    const bytes = await foreignFile();
+    target.cloud.account.file = { bytes, updatedAt: 1 };
+    await target.backup.markChanged();
+    await target.backup.sync();
+    expect((await target.backup.status()).problem).toBe("otherPassword");
+    await expect(target.backup.syncNow()).rejects.toThrow(userErrorMessage("backupOtherPassword"));
+    expect(target.cloud.account.file?.bytes).toEqual(bytes);
   });
 });
 
