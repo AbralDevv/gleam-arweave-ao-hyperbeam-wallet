@@ -990,6 +990,57 @@ describe("ApprovalHandler: signing approval preview + unlocked-session gate", ()
     await expect(pending).rejects.toThrow();
   });
 
+  it("marks text cut at the preview limit and returns the whole text on request", async () => {
+    const long = "A".repeat(100_000);
+    const short = "B".repeat(4096);
+    const pending = handler.requestApproval({
+      kind: "batchSignDataItem",
+      origin: "https://bazar.arweave.net",
+      walletId: WALLET_ID,
+      payload: new TextEncoder().encode(long),
+      dataItems: [
+        { data: btoa(long), tags: [] },
+        { data: btoa(short), tags: [] },
+      ],
+    });
+    pending.catch(() => {});
+    await vi.waitFor(() => expect(presenter.presented.length).toBe(1));
+    const requestId = presenter.presented[0]!;
+    const request = await handler.getApproval({ requestId });
+    if (request.preview.kind === "connect" || request.preview.kind === "addToken" || request.preview.kind === "scanAttestation") {
+      throw new Error("expected a signing preview");
+    }
+    expect(request.preview).toMatchObject({ dataSize: 100_000, dataTruncated: true });
+    expect(request.preview.items?.[0]).toMatchObject({ dataSize: 100_000, dataTruncated: true });
+    expect(request.preview.items?.[1]?.dataTruncated).toBeUndefined();
+
+    await expect(handler.getApprovalData({ requestId })).resolves.toEqual({ text: long });
+    await expect(handler.getApprovalData({ requestId, index: 0 })).resolves.toEqual({ text: long });
+    await expect(handler.getApprovalData({ requestId, index: 1 })).resolves.toEqual({ text: short });
+    await expect(handler.getApprovalData({ requestId, index: 2 })).resolves.toEqual({ text: null });
+    await expect(handler.getApprovalData({ requestId: "unknown" })).rejects.toThrow();
+
+    await handler.resolveApproval({ requestId, approved: false });
+    await expect(pending).rejects.toThrow();
+  });
+
+  it("returns no text for data that isn't text", async () => {
+    const binary = Uint8Array.from([0xff, 0xfe, 0x00, 0x41]);
+    const pending = handler.requestApproval({
+      kind: "sign",
+      origin: "https://bazar.arweave.net",
+      walletId: WALLET_ID,
+      payload: binary,
+      tags: [],
+    });
+    pending.catch(() => {});
+    await vi.waitFor(() => expect(presenter.presented.length).toBe(1));
+    const requestId = presenter.presented[0]!;
+    await expect(handler.getApprovalData({ requestId })).resolves.toEqual({ text: null });
+    await handler.resolveApproval({ requestId, approved: false });
+    await expect(pending).rejects.toThrow();
+  });
+
   it("getApproval returns the exact pending ApprovalRequest for a requestId", async () => {
     const pending = handler.requestApproval({
       kind: "sign",

@@ -731,22 +731,28 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 }
 
 /*
- * The window shows the start of the text; the payload and `payloadHash`
- * still cover every byte. A full copy would be stored a second time
- * beside the payload and count against `PENDING_BYTES_PER_ORIGIN`.
+ * The window shows the start of the text and offers the rest on request
+ * (`getApprovalData`), decoded from the stored payload. A full copy in the
+ * preview would be stored a second time beside the payload and count
+ * against `PENDING_BYTES_PER_ORIGIN`. The payload and `payloadHash` cover
+ * every byte either way.
  */
 const DATA_PREVIEW_CHARS = 4096;
 
-function decodeDataPreview(payload: Uint8Array): string | null {
-  let text: string;
+function decodeText(payload: Uint8Array): string | null {
   try {
-    text = new TextDecoder("utf-8", { fatal: true }).decode(payload);
+    return new TextDecoder("utf-8", { fatal: true }).decode(payload);
   } catch {
     return null;
   }
-  if (text.length <= DATA_PREVIEW_CHARS) return text;
+}
+
+function dataPreview(payload: Uint8Array): { decodedData: string | null; dataTruncated?: true } {
+  const text = decodeText(payload);
+  if (text === null) return { decodedData: null };
+  if (text.length <= DATA_PREVIEW_CHARS) return { decodedData: text };
   const cut = /[\uD800-\uDBFF]/.test(text[DATA_PREVIEW_CHARS - 1]!) ? DATA_PREVIEW_CHARS - 1 : DATA_PREVIEW_CHARS;
-  return `${text.slice(0, cut)}…`;
+  return { decodedData: `${text.slice(0, cut)}…`, dataTruncated: true };
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
@@ -825,7 +831,7 @@ async function buildDataItemPreviews(
           ? { id: transfer.processId }
           : null;
       return {
-        decodedData: decodeDataPreview(bytes),
+        ...dataPreview(bytes),
         dataSize: bytes.byteLength,
         tags,
         target: item.target ?? null,
@@ -866,7 +872,7 @@ async function buildSigningPreview(input: SigningRequestInput): Promise<SigningA
     tokenTicker: input.tokenTicker ?? null,
     ...(input.collectible ? { collectible: input.collectible } : {}),
     ...(input.unreadableTokenTransfer ? { unreadableTokenTransfer: true } : {}),
-    decodedData: decodeDataPreview(input.payload),
+    ...dataPreview(input.payload),
     dataSize: input.payload.byteLength,
     tags: input.tags ?? [],
     payloadHash,
@@ -1156,6 +1162,24 @@ export class ApprovalHandler {
   /** `ProtocolMap.getApproval` — read-only, called by the approval UI on mount. */
   async getApproval(req: { requestId: string }): Promise<ApprovalRequest> {
     return this.requestView(await this.findPending(req.requestId));
+  }
+
+  /**
+   * `ProtocolMap.getApprovalData`: the whole text of the data a request
+   * signs, for a preview that shows only its start. `index` picks a data
+   * item; without it, the request's own payload. `null` where the bytes
+   * aren't text or nothing is signed there.
+   */
+  async getApprovalData(req: { requestId: string; index?: number }): Promise<{ text: string | null }> {
+    const entry = await this.findPending(req.requestId);
+    if (entry.request.kind === "connect" || entry.request.kind === "addToken" || entry.signingInput === null) return { text: null };
+    const input = this.signingInputOf(entry);
+    if (input.kind === "scanAttestation") return { text: null };
+    if (req.index === undefined) return { text: decodeText(input.payload) };
+    const items =
+      input.kind === "signDataItem" ? input.dataItems?.slice(0, 1) : input.kind === "batchSignDataItem" ? input.dataItems : undefined;
+    const item = items?.[req.index];
+    return { text: item ? decodeText(base64ToBytes(item.data)) : null };
   }
 
   /** The request as the approval UI sees it: with the device's payloads once it waits on one. */

@@ -2,6 +2,7 @@ import { MemorableAddress } from "@gleam/ui/src/components/wallet/index.ts";
 import { useAddressIdentity } from "../address-identity";
 import { useT } from "../i18n";
 import { UntrustedText } from "../approval/UntrustedText";
+import { SignedDataText } from "../approval/SignedDataText";
 import type { OtherItem } from "./model";
 
 /** One data item a request signs that moves no value: its target, data, tags and hash. */
@@ -29,9 +30,14 @@ export function DataItemCard({ index, item }: { index: number; item: OtherItem }
       {item.decodedData !== null && item.decodedData !== "" ? (
         <div className="flex flex-col gap-0.5">
           <span className="text-caption font-semibold uppercase tracking-wide text-muted">{t("approval.decodedData")}</span>
-          <div className="max-h-20 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-mist p-2 font-mono text-caption leading-relaxed text-foreground">
-            <UntrustedText text={item.decodedData} />
-          </div>
+          <SignedDataText
+            text={item.decodedData}
+            size={item.dataSize}
+            truncated={item.dataTruncated}
+            index={index}
+            boxClassName="overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-mist p-2 font-mono text-caption leading-relaxed text-foreground"
+            collapsedClassName="max-h-20"
+          />
         </div>
       ) : item.decodedData === null && (item.dataSize ?? 0) > 0 ? (
         <div className="flex flex-col gap-0.5">

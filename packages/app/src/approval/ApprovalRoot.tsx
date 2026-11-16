@@ -32,6 +32,7 @@ import { forgetQueryCache } from "../query-cache/sweep";
 import { ConnectionRequestScreen } from "./ConnectionRequestScreen";
 import { ScanAttestationResult, ScanAttestationScreen } from "./ScanAttestationScreen";
 import { SigningApprovalScreen } from "./SigningApprovalScreen";
+import { LoadSignedDataProvider } from "./SignedDataText";
 import { errorText } from "../i18n/errors";
 import { recipientsOf, transferRequestFromPreview } from "../transfer-review/model";
 import { useApprovalTransferContext } from "../transfer-review/useApprovalTransferContext";
@@ -440,6 +441,16 @@ function ApprovalRootContent({
     } else {
       const signingPreview = request.preview;
       content = (
+        <LoadSignedDataProvider
+          value={async (index) =>
+            (
+              await runtime.send<{ requestId: string; index?: number }, { text: string | null }>({
+                type: "getApprovalData",
+                payload: { requestId: request.requestId, ...(index === undefined ? {} : { index }) },
+              })
+            ).text
+          }
+        >
         <SigningApprovalScreen
           origin={request.origin}
           siteIcon={request.siteIcon ?? null}
@@ -450,6 +461,7 @@ function ApprovalRootContent({
           onReject={() => void handleReject()}
           onSign={() => handleApprove("approval.signed", "approval.signingFailed")}
         />
+        </LoadSignedDataProvider>
       );
     }
   }
