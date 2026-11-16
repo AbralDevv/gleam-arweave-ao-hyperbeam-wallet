@@ -55,6 +55,7 @@ describe("escapeHiddenCharacters", () => {
   it("splits out the Mongolian and supplementary variation selectors", () => {
     expect(escapeHiddenCharacters("A\u180bO")).toEqual(["A", { codePoint: "U+180B" }, "O"]);
     expect(escapeHiddenCharacters("A\u180dO")).toEqual(["A", { codePoint: "U+180D" }, "O"]);
+    expect(escapeHiddenCharacters("A\u180fO")).toEqual(["A", { codePoint: "U+180F" }, "O"]);
     expect(escapeHiddenCharacters("A\u{e0100}O")).toEqual(["A", { codePoint: "U+E0100" }, "O"]);
     expect(escapeHiddenCharacters("A\u{e01ef}O")).toEqual(["A", { codePoint: "U+E01EF" }, "O"]);
   });
