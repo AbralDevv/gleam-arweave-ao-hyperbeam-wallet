@@ -237,6 +237,8 @@ export interface ProtocolMap {
 
   // approvals
   getApproval(req: { requestId: string }): ApprovalRequest;
+  /** The whole text of data the approval preview shows only the start of; `index` picks a data item. */
+  getApprovalData(req: { requestId: string; index?: number }): { text: string | null };
   /**
    * A signing approval reads its signing key the same way
    * `submitTransfer` does — from the unlocked-session cache,

@@ -61,6 +61,9 @@ describe("ApprovalRoot theme application (provider-bridge closing wallet-core's 
     await waitFor(() => {
       expect(container.querySelector('[data-theme="dark"]')).toBeTruthy();
     });
+    // The page behind the root turns dark too, not only the root.
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    document.documentElement.removeAttribute("data-theme");
   });
 
   it("omits data-theme when the stored preference is light", async () => {
@@ -73,8 +76,10 @@ describe("ApprovalRoot theme application (provider-bridge closing wallet-core's 
 
     const { container } = render(<ApprovalRoot armDelayMs={0} requestId="req-1" runtime={fakeRuntime({ send: send as never })} />);
 
+    document.documentElement.setAttribute("data-theme", "dark");
     await waitFor(() => {
       expect(container.querySelector("[data-theme]")).toBeNull();
+      expect(document.documentElement.hasAttribute("data-theme")).toBe(false);
     });
   });
 

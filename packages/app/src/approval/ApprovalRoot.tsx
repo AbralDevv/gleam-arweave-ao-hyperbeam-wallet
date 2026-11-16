@@ -32,6 +32,8 @@ import { forgetQueryCache } from "../query-cache/sweep";
 import { ConnectionRequestScreen } from "./ConnectionRequestScreen";
 import { ScanAttestationResult, ScanAttestationScreen } from "./ScanAttestationScreen";
 import { SigningApprovalScreen } from "./SigningApprovalScreen";
+import { applyDocumentTheme } from "../theme";
+import { LoadSignedDataProvider } from "./SignedDataText";
 import { errorText } from "../i18n/errors";
 import { recipientsOf, transferRequestFromPreview } from "../transfer-review/model";
 import { useApprovalTransferContext } from "../transfer-review/useApprovalTransferContext";
@@ -201,15 +203,20 @@ function ApprovalRootContent({
   };
 
   const applyTheme = async (runtime: RuntimePort) => {
+    let stored: ThemeSettings["theme"] = "light";
     try {
       const settings = await runtime.send<void, ThemeSettings>({
         type: "getThemePreference",
         payload: undefined,
       });
-      setTheme(settings.theme);
+      stored = settings.theme;
     } catch {
-      setTheme("light");
+      // Light, as `App` falls back.
     }
+    // The page behind the root is painted too, or a short request shows
+    // the light page under dark text.
+    applyDocumentTheme(stored);
+    setTheme(stored);
   };
 
   const load = async (runtime: RuntimePort, id: string) => {
@@ -440,6 +447,16 @@ function ApprovalRootContent({
     } else {
       const signingPreview = request.preview;
       content = (
+        <LoadSignedDataProvider
+          value={async (index) =>
+            (
+              await runtime.send<{ requestId: string; index?: number }, { text: string | null }>({
+                type: "getApprovalData",
+                payload: { requestId: request.requestId, ...(index === undefined ? {} : { index }) },
+              })
+            ).text
+          }
+        >
         <SigningApprovalScreen
           origin={request.origin}
           siteIcon={request.siteIcon ?? null}
@@ -450,6 +467,7 @@ function ApprovalRootContent({
           onReject={() => void handleReject()}
           onSign={() => handleApprove("approval.signed", "approval.signingFailed")}
         />
+        </LoadSignedDataProvider>
       );
     }
   }
@@ -460,7 +478,7 @@ function ApprovalRootContent({
 
   return (
     <AddressIdentityProvider value={addressIdentity}>
-      <div data-theme={theme === "dark" ? "dark" : undefined} className="min-h-full">
+      <div data-theme={theme === "dark" ? "dark" : undefined} className="min-h-full bg-background text-foreground">
         {showSecurityPhrase ? (
           <div className="flex justify-center px-6 pt-3">
             <SecurityPhraseMark phrase={securityPhrase.phrase} iconSvg={securityPhrase.icon} />

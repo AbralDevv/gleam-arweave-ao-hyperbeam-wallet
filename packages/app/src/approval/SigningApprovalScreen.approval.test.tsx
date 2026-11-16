@@ -7,6 +7,7 @@ import { formatCurrencyValue, HIDDEN_AMOUNT } from "@gleam/ui/src/format/currenc
 import { truncateAddress } from "@gleam/ui/src/format/truncate-address.ts";
 import { groupDigits, type TransferContext } from "../transfer-review/model";
 import { SigningApprovalScreen, type SigningApprovalScreenProps } from "./SigningApprovalScreen";
+import { LoadSignedDataProvider, type LoadSignedData } from "./SignedDataText";
 
 afterEach(() => {
   cleanup();
@@ -467,6 +468,65 @@ describe("SigningApprovalScreen: requests that move nothing", () => {
     renderScreen({ preview: { ...MESSAGE_PREVIEW, decodedData: null, dataSize: 1048576 } });
     expect(screen.getByText("Data")).toBeTruthy();
     expect(screen.getByText("1048576 bytes")).toBeTruthy();
+  });
+
+  describe("text longer than the preview holds", () => {
+    const START = `${"A".repeat(4096)}…`;
+    const WHOLE = `${"A".repeat(4096)}ZZ-the-end`;
+    const truncated = { decodedData: START, dataSize: 100000, dataTruncated: true as const };
+
+    function renderWith(preview: SigningApprovalPreview, load: LoadSignedData) {
+      render(
+        <LoadSignedDataProvider value={load}>
+          <SigningApprovalScreen
+            origin="https://dapp.example"
+            assessment={KNOWN}
+            from={FROM}
+            context={CONTEXT}
+            preview={preview}
+            onReject={vi.fn()}
+            onSign={vi.fn().mockResolvedValue(undefined)}
+          />
+        </LoadSignedDataProvider>,
+      );
+    }
+
+    it("shows its size and loads the whole text on Show all", async () => {
+      const load = vi.fn().mockResolvedValue(WHOLE);
+      renderWith({ ...MESSAGE_PREVIEW, ...truncated }, load);
+      expect(screen.getByText("100000 bytes")).toBeTruthy();
+      expect(screen.queryByText(/ZZ-the-end/)).toBeNull();
+
+      fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+      expect(await screen.findByText(/ZZ-the-end/)).toBeTruthy();
+      expect(load).toHaveBeenCalledWith(undefined);
+
+      fireEvent.click(screen.getByRole("button", { name: "Show less" }));
+      expect(screen.queryByText(/ZZ-the-end/)).toBeNull();
+      expect(screen.getByText(START)).toBeTruthy();
+    });
+
+    it("asks for the item's own text in a batch", async () => {
+      const load = vi.fn().mockResolvedValue(WHOLE);
+      const preview: SigningApprovalPreview = {
+        ...MESSAGE_PREVIEW,
+        kind: "batchSignDataItem",
+        items: [
+          { decodedData: "short", dataSize: 5, tags: [], target: null, payloadHash: "a".repeat(64), transfer: null },
+          { ...truncated, tags: [], target: null, payloadHash: "b".repeat(64), transfer: null },
+        ],
+      };
+      renderWith(preview, load);
+      fireEvent.click(screen.getByRole("button", { name: "Show all" }));
+      expect(await screen.findByText(/ZZ-the-end/)).toBeTruthy();
+      expect(load).toHaveBeenCalledWith(1);
+    });
+
+    it("offers no control for text that fits", () => {
+      renderWith({ ...MESSAGE_PREVIEW, decodedData: "short", dataSize: 5 }, vi.fn());
+      expect(screen.queryByRole("button", { name: "Show all" })).toBeNull();
+      expect(screen.queryByText("5 bytes")).toBeNull();
+    });
   });
 
   it("lists every item of a batch with no transfer in it", () => {

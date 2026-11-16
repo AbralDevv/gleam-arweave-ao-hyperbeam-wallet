@@ -32,6 +32,7 @@ describe("ProtocolMap", () => {
       "estimateCollectibleSend",
       "sendCollectible",
       "getApproval",
+      "getApprovalData",
       "resolveApproval",
       "submitDeviceSignature",
       "deviceActivity",
@@ -44,7 +45,7 @@ describe("ProtocolMap", () => {
       "saveContact",
       "deleteContact",
     ];
-    expect(methodNames.length).toBe(31);
+    expect(methodNames.length).toBe(32);
     expect(new Set(methodNames).size).toBe(methodNames.length);
   });
 

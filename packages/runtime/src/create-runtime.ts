@@ -665,6 +665,7 @@ export function createRuntime(platform: Platform): Runtime {
 
     // approvals
     getApproval: (data) => approval.getApproval(data),
+    getApprovalData: (data) => approval.getApprovalData(data),
     // The approval window's load doesn't count as activity, since a site
     // opens it; the user's answer in it does.
     resolveApproval: async (data) => {

@@ -332,6 +332,7 @@ export const BACKGROUND_MESSAGES = {
 
   // approvals
   getApproval: EXTENSION,
+  getApprovalData: EXTENSION,
   resolveApproval: EXTENSION,
   submitDeviceSignature: EXTENSION,
   checkScanAttestation: EXTENSION,

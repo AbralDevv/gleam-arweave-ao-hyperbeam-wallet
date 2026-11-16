@@ -6,6 +6,7 @@ import { useT, type MessageKey, type TFunction } from "../i18n";
 import { formatWinstonAsAr } from "../screens/main-screen/src/formatWinston";
 import { errorText } from "../i18n/errors";
 import { UntrustedText } from "./UntrustedText";
+import { SignedDataText } from "./SignedDataText";
 import { DataItemCard } from "../transfer-review/DataItemCard";
 import { RequestHeader } from "../transfer-review/RequestHeader";
 import { ReviewButtons, TransferReview } from "../transfer-review/TransferReview";
@@ -35,6 +36,8 @@ export interface SigningApprovalScreenProps {
   /** Rejects (surfacing its message inline) if signing fails — e.g. the wallet's unlocked session has since expired. */
   onSign: () => Promise<void>;
 }
+
+const DATA_BOX = "overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-mist p-3 font-mono text-caption leading-relaxed text-foreground";
 
 const REQUEST_KIND_COPY: Record<SigningApprovalPreview["kind"], MessageKey> = {
   sign: "approval.actionSignAndSend",
@@ -164,9 +167,13 @@ export function SigningApprovalScreen({
             {preview.decodedData !== null && preview.decodedData !== "" ? (
               <div className="flex flex-col gap-1.5">
                 <span className="text-caption font-semibold uppercase tracking-wide text-muted">{t("approval.decodedData")}</span>
-                <div className="max-h-24 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-mist p-3 font-mono text-caption leading-relaxed text-foreground">
-                  <UntrustedText text={preview.decodedData} />
-                </div>
+                <SignedDataText
+                  text={preview.decodedData}
+                  size={preview.dataSize}
+                  truncated={preview.dataTruncated}
+                  boxClassName={DATA_BOX}
+                  collapsedClassName="max-h-24"
+                />
               </div>
             ) : preview.decodedData === null && (preview.dataSize ?? 0) > 0 ? (
               <div className="flex flex-col gap-1.5">

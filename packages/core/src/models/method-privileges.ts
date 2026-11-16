@@ -50,7 +50,7 @@ export const REFUSED_PROVIDER_METHODS = {
 } as const;
 
 /** Reachable only from the approval window. */
-export const APPROVAL_METHODS = ["getApproval", "resolveApproval", "submitDeviceSignature", "deviceActivity"] as const;
+export const APPROVAL_METHODS = ["getApproval", "getApprovalData", "resolveApproval", "submitDeviceSignature", "deviceActivity"] as const;
 
 /** Reachable only from trusted extension UI, never a page. */
 export const KEY_METHODS = [

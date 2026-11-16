@@ -8,3 +8,12 @@
 @source ".";
 /* The Keystone views, which a shell hands these screens through `AppPlatform`. */
 @source "../../keystone/src";
+
+/*
+ * The document behind a surface's root follows its theme, so a window
+ * taller than its content (the approval window) has no light band.
+ */
+html[data-theme="dark"] {
+  background: var(--color-background);
+  color-scheme: dark;
+}
