@@ -124,6 +124,7 @@
 3 apps/mobile/src/adapters/runtime-port.ts
 3 apps/mobile/src/adapters/lock-guard.ts
 3 apps/mobile/src/adapters/app-away.ts
+3 apps/mobile/src/adapters/secure-screen.ts
 3 packages/runtime/src/storage-update.ts
 3 packages/runtime/src/storage-keys.ts
 3 packages/core/src/models/serialize.ts

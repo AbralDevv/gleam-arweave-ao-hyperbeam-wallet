@@ -15,6 +15,7 @@ import { createICloudFile } from "./adapters/cloud-file-icloud";
 import { KeystoneConnect, KeystonePanel } from "./adapters/keystone";
 import { createQrScanner } from "./adapters/qr-scanner";
 import { createMobileQueryCache } from "./adapters/query-cache";
+import { createSecureScreen } from "./adapters/secure-screen";
 import { createStoreReview } from "./adapters/store-review";
 import { createDappBridge, serveDappTabs } from "./adapters/dapp-bridge";
 import { createDappBrowser } from "./adapters/dapp-browser";
@@ -128,6 +129,7 @@ export async function createMobileAppPlatform({ onInviteGateChanged }: MobileApp
     dappBrowser,
     backButton: createBackButton(),
     approvalSheet,
+    ...(preview ? {} : { secureScreen: createSecureScreen() }),
     notices: createLinkNotices(worker),
     activeSite: { subscribe: dapps.subscribe },
     downloads: { requestPermission: async () => true },
