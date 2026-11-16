@@ -87,6 +87,8 @@ export interface SigningApprovalPreview {
   decodedData: string | null;
   /** The signed data's length in bytes, shown when `decodedData` can't show it as text. */
   dataSize?: number;
+  /** Set when `decodedData` holds only the start of longer text; `getApprovalData` returns the rest. */
+  dataTruncated?: true;
   tags: Array<{ name: string; value: string }>;
   payloadHash: string;
   /**
@@ -97,6 +99,7 @@ export interface SigningApprovalPreview {
   items: Array<{
     decodedData: string | null;
     dataSize?: number;
+    dataTruncated?: true;
     tags: Array<{ name: string; value: string }>;
     target: string | null;
     payloadHash: string;

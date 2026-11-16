@@ -12,6 +12,7 @@ import {
 import { useAddressIdentity } from "../address-identity";
 import { useT } from "../i18n";
 import { UntrustedText } from "../approval/UntrustedText";
+import { SignedDataText } from "../approval/SignedDataText";
 import { DataItemCard } from "./DataItemCard";
 import {
   amountText,
@@ -513,9 +514,14 @@ function TransferDetails({ transfer, part, showTags }: { transfer: TransferLine;
       {part.decodedData !== null && part.decodedData !== "" ? (
         <div className="flex flex-col gap-1">
           <span className="text-label text-muted">{t("transferReview.decodedData")}</span>
-          <div className="max-h-24 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-background p-3 font-mono text-caption leading-relaxed text-foreground">
-            <UntrustedText text={part.decodedData} />
-          </div>
+          <SignedDataText
+            text={part.decodedData}
+            size={part.dataSize}
+            truncated={part.dataTruncated}
+            index={part.dataIndex}
+            boxClassName="overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-background p-3 font-mono text-caption leading-relaxed text-foreground"
+            collapsedClassName="max-h-24"
+          />
         </div>
       ) : part.decodedData === null && (part.dataSize ?? 0) > 0 ? (
         <div className="flex flex-col gap-1">

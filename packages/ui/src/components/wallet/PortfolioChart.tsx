@@ -59,8 +59,7 @@ import { useUiLabels, useUiLocale } from "../../labels";
  * value, not a class name.
  *
  * Dark also smooths the line, fades the area out toward the bottom, marks
- * the period's opening value with a dotted line and the current value
- * with a dot. These are `dark:` classes so light renders as before.
+ * the period's opening value with a dotted line. These are `dark:` classes so light renders as before.
  */
 export interface PortfolioChartPoint {
   timestamp: number;
@@ -193,7 +192,6 @@ export function PortfolioChart({
   const smoothPath = toSmoothPath(coords);
   const smoothArea = smoothPath ? `${smoothPath}L${CHART_WIDTH} ${CHART_HEIGHT}L0 ${CHART_HEIGHT}Z` : "";
   const openY = coords[0]?.y;
-  const lastCoord = coords[coords.length - 1];
   const fillId = `portfolio-chart-fill-${useId()}`;
   const changeColorVar = isPositive ? "var(--color-positive)" : "var(--color-negative)";
   const lineColorVar = isPositive ? "var(--color-chart-up)" : "var(--color-chart-down)";
@@ -341,7 +339,7 @@ export function PortfolioChart({
             className="hidden dark:inline"
             d={smoothPath}
             fill="none"
-            stroke={lineColorVar}
+            stroke={changeColorVar}
             strokeOpacity={0.85}
             strokeWidth={1.75}
             strokeLinejoin="round"
@@ -349,14 +347,6 @@ export function PortfolioChart({
             vectorEffect="non-scaling-stroke"
           />
         </svg>
-      {/* An HTML dot, since the SVG stretches and would draw a circle as an ellipse. */}
-      {!compact && lastCoord ? (
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute hidden h-[7px] w-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-foreground shadow-[0_0_0_5px_color-mix(in_srgb,var(--color-foreground)_18%,transparent)] dark:block"
-          style={{ left: `${(lastCoord.x / CHART_WIDTH) * 100}%`, top: `${(lastCoord.y / CHART_HEIGHT) * 100}%` }}
-        />
-      ) : null}
         </div>
       )}
     </ChartArea>
