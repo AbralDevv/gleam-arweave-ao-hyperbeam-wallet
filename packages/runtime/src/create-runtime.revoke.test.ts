@@ -60,3 +60,54 @@ describe("ending a site's access with a signing request pending", () => {
     });
   }
 });
+
+describe("ending a site's access with a read in flight", () => {
+  async function setupRead() {
+    const platform = createInMemoryPlatform();
+    const runtime = createRuntime(platform);
+    const wallet = (await runtime.dispatch("createWallet", { name: "A", password: "correct horse" }, EXTENSION)) as WalletSummary;
+    await platform.storage.set("local:grants", [
+      {
+        origin: ORIGIN,
+        walletId: wallet.id,
+        permissions: ["ACCESS_ADDRESS", "ACCESS_TOKENS"],
+        createdAt: Date.now(),
+        expiresAt: null,
+        budget: null,
+      },
+    ]);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const fetchStub = vi.fn(async () => {
+      await gate;
+      return new Response("4242", { status: 200 });
+    });
+    globalThis.fetch = fetchStub as unknown as typeof fetch;
+    const read = runtime.dispatch("providerCall", { method: "getBalances", params: {} }, CONTENT_SCRIPT) as Promise<unknown>;
+    void read.catch(() => {});
+    await vi.waitFor(() => expect(fetchStub).toHaveBeenCalled());
+    return { runtime, wallet, read, release };
+  }
+
+  it("withholds the result after a revoke", async () => {
+    const { runtime, read, release } = await setupRead();
+    await runtime.dispatch("revokeGrant", { origin: ORIGIN }, EXTENSION);
+    release();
+    await expect(read).rejects.toThrow("is not connected");
+  });
+
+  it("withholds the result after the wallet is deleted", async () => {
+    const { runtime, wallet, read, release } = await setupRead();
+    await runtime.dispatch("deleteWallet", { walletId: wallet.id }, EXTENSION);
+    release();
+    await expect(read).rejects.toThrow("is not connected");
+  });
+
+  it("still answers a site that stays connected", async () => {
+    const { read, release } = await setupRead();
+    release();
+    await expect(read).resolves.toEqual({ ar: "4242" });
+  });
+});

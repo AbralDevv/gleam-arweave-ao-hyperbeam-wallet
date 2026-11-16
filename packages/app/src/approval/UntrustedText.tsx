@@ -10,7 +10,7 @@
  */
 // Combining marks come first: eslint's no-misleading-character-class
 // flags any character in the class that a combining mark follows.
-const HIDDEN_CHARACTER = /(?![\t\n\r])[\u034f\u17b4\u180b-\u180d\ufe00-\ufe0f\u{e0100}-\u{e01ef}\u17b5\p{Cf}\p{Cc}\u2028\u2029\u115f\u1160\u3164\uffa0]/gu;
+const HIDDEN_CHARACTER = /(?![\t\n\r])[\u034f\u17b4\u180b-\u180f\ufe00-\ufe0f\u{e0100}-\u{e01ef}\u17b5\p{Cf}\p{Cc}\u2028\u2029\u115f\u1160\u3164\uffa0]/gu;
 
 export type TextPart = string | { codePoint: string };
 

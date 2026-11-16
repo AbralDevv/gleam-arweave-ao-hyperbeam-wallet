@@ -1049,38 +1049,6 @@ describe("WalletLifecycleHandler: getLockSettings", () => {
   });
 });
 
-describe("WalletLifecycleHandler: keepLockTimeoutOnUpdate", () => {
-  it("keeps never for a vault that predates the 1-hour default", async () => {
-    const storage = createFakeStorage();
-    const handler = new WalletLifecycleHandler(storage, keySession, TEST_KDF);
-    await handler.createWallet({ name: "Main", password: GOOD_PASSWORD });
-    await storage.remove("local:lockSettings");
-
-    await handler.keepLockTimeoutOnUpdate();
-
-    expect(await handler.getLockSettings()).toEqual({ autoLockTimeout: "never" });
-  });
-
-  it("leaves a timeout the user chose", async () => {
-    const storage = createFakeStorage();
-    const handler = new WalletLifecycleHandler(storage, keySession, TEST_KDF);
-    await handler.createWallet({ name: "Main", password: GOOD_PASSWORD });
-    await handler.setLockSettings({ autoLockTimeout: "5min" });
-
-    await handler.keepLockTimeoutOnUpdate();
-
-    expect(await handler.getLockSettings()).toEqual({ autoLockTimeout: "5min" });
-  });
-
-  it("leaves an install with no wallet on the default", async () => {
-    const handler = new WalletLifecycleHandler(createFakeStorage(), keySession, TEST_KDF);
-
-    await handler.keepLockTimeoutOnUpdate();
-
-    expect(await handler.getLockSettings()).toEqual({ autoLockTimeout: "1hr" });
-  });
-});
-
 describe("WalletLifecycleHandler: getThemePreference", () => {
   it("defaults to light when nothing is stored", async () => {
     const handler = new WalletLifecycleHandler(createFakeStorage(), keySession, TEST_KDF);

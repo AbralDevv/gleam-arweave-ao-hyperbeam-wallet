@@ -168,6 +168,11 @@ export function SigningApprovalScreen({
                   <UntrustedText text={preview.decodedData} />
                 </div>
               </div>
+            ) : preview.decodedData === null && (preview.dataSize ?? 0) > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-caption font-semibold uppercase tracking-wide text-muted">{t("approval.data")}</span>
+                <span className="font-mono text-caption text-foreground">{t("approval.bytes", { size: String(preview.dataSize) })}</span>
+              </div>
             ) : null}
 
             {preview.tags.length > 0 ? (

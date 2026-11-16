@@ -212,14 +212,12 @@ count as a finding.
   even when your computer locks", and the Settings list shows the
   current timeout. Only the extension's own pages can change it
   (`setLockSettings` is extension-tier in
-  `packages/runtime/src/dispatch/methods.ts`). On an extension update, a
-  vault that has wallets but no stored timeout is set to "never", so
-  its behavior doesn't change (`keepLockTimeoutOnUpdate` in
-  `packages/runtime/src/handlers/wallet-lifecycle.ts`). A vault holding
+  `packages/runtime/src/dispatch/methods.ts`). A vault with no stored
+  timeout reads as 1 hour, and an update never writes one. A vault holding
   only hardware wallets has no password, so it never locks.
   *Still a finding if,* by any path, a web page, content script or
   message from outside the extension's pages changes the timeout; the
-  setting changes on update for a vault that already had one stored; or
+  setting changes on update; or
   a vault holding a password-encrypted key stays unlocked past the chosen
   timeout, or past a screen lock with any timeout other than "never".
 - **The password policy is a minimum length and a blocklist.** The

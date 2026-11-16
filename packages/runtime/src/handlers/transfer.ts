@@ -390,7 +390,19 @@ export class TransferHandler {
     return { txId };
   }
 
+  /**
+   * Never throws: the network has already accepted the send, and an error
+   * here would show it as failed and invite the user to send it again.
+   */
   private async recordSend(address: string, req: SubmitTransferRequest, txId: string): Promise<void> {
+    try {
+      await this.writeSendRecord(address, req, txId);
+    } catch (error) {
+      console.error(`Couldn't record the accepted send ${txId}:`, error);
+    }
+  }
+
+  private async writeSendRecord(address: string, req: SubmitTransferRequest, txId: string): Promise<void> {
     // A collectible send settles like an AR send, through the gateway
     // index, so it carries no `token` for the AO result check to read.
     await this.appendActivityLog(address, {

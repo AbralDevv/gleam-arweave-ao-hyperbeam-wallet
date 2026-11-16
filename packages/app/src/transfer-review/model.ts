@@ -44,6 +44,7 @@ export interface TransferLine {
 export interface SignedPart {
   tags: Tag[];
   decodedData: string | null;
+  dataSize?: number;
   /** `null` where nothing of the request's own is signed yet (a wallet send). */
   payloadHash: string | null;
 }
@@ -121,7 +122,7 @@ export function transferRequestFromPreview(preview: SigningApprovalPreview): Tra
     const transfers: TransferRequest["transfers"] = [];
     const others: TransferRequest["others"] = [];
     items.forEach((item, index) => {
-      const part = { tags: item.tags, decodedData: item.decodedData, payloadHash: item.payloadHash };
+      const part = { tags: item.tags, decodedData: item.decodedData, dataSize: item.dataSize, payloadHash: item.payloadHash };
       if (item.transfer) {
         const { token, tokenTicker, tokenDenomination, amount, recipient, collectible } = item.transfer;
         transfers.push({
@@ -178,6 +179,7 @@ export function transferRequestFromPreview(preview: SigningApprovalPreview): Tra
         part: {
           tags: preview.tags,
           decodedData: preview.decodedData,
+          dataSize: preview.dataSize,
           payloadHash: walletSend ? null : preview.payloadHash,
         },
         index: 0,

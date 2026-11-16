@@ -37,7 +37,7 @@ function isBackupState(value: unknown): value is BackupState {
     writer.length > 0 &&
     isTimeOrNull(lastWriteAt) &&
     isTimeOrNull(dirtyAt) &&
-    (problem === null || problem === "signIn" || problem === "missing")
+    (problem === null || problem === "signIn" || problem === "missing" || problem === "otherPassword")
   );
 }
 

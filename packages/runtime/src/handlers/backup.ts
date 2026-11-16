@@ -17,6 +17,7 @@ import {
   unwrapWithPasskey,
   writeBackupData,
   type BackupBody,
+  type BackupFile,
   type BackupHeader,
   type BackupData,
   type BackupDevice,
@@ -75,7 +76,7 @@ export interface FoundBackup {
   passkeys: { credentialId: string; prfSalt: string }[];
 }
 
-type WriteOutcome = "written" | "current" | "off" | "locked" | "signIn" | "missing";
+type WriteOutcome = "written" | "current" | "off" | "locked" | "signIn" | "missing" | "otherPassword";
 
 interface WriteOptions {
   /** A person asked for this write, so the account may show its sign-in and a removed file is made again. */
@@ -121,8 +122,9 @@ export class BackupHandler {
   /**
    * Turns backup on and writes the first file. A backup already in the
    * account that this password opens is joined, keeping its key, so a
-   * second device adds its vault to the same file. Any other file there is
-   * replaced.
+   * second device adds its vault to the same file. A backup this password
+   * can't open is refused, since it may be another vault's only copy; a
+   * file that isn't a backup at all is replaced.
    */
   async setUp(req: { password: string }): Promise<BackupStatus> {
     const cloud = this.requireCloud();
@@ -130,7 +132,10 @@ export class BackupHandler {
     await this.inTurn(async () => {
       await this.signIn(cloud);
       const remote = await cloud.read();
-      const stored = (remote && (await this.joinBackup(remote.bytes, req.password))) ?? (await this.newBackup(req.password));
+      const file = remote ? decodeBackupFile(remote.bytes) : null;
+      const joined = file ? await this.joinBackup(file, req.password) : null;
+      if (file && !joined) throw new Error(userErrorMessage("backupOtherPassword"));
+      const stored = joined ?? (await this.newBackup(req.password));
       const previous = await loadBackupState(this.storage);
       await this.storage.setMany({
         [BACKUP_KEY]: stored,
@@ -288,9 +293,7 @@ export class BackupHandler {
   }
 
   /** The key of a backup already in the account, when `password` opens it. */
-  private async joinBackup(bytes: Uint8Array, password: string): Promise<StoredBackupKey | null> {
-    const file = decodeBackupFile(bytes);
-    if (!file) return null;
+  private async joinBackup(file: BackupFile, password: string): Promise<StoredBackupKey | null> {
     const { backupId, wrapped } = file.header;
     let raw: Bytes;
     try {
@@ -346,6 +349,13 @@ export class BackupHandler {
       // A file that was there and is gone was removed from the account's
       // side. Only a person asking brings it back.
       if (!remote && state.lastWriteAt !== null && !interactive) return this.stopped("missing");
+      // Another vault's backup, made under a different password, is never
+      // written over: it may be that vault's only copy.
+      const remoteFile = remote ? decodeBackupFile(remote.bytes) : null;
+      if (remoteFile && remoteFile.header.backupId !== stored.backupId) {
+        if (interactive) throw new Error(userErrorMessage("backupOtherPassword"));
+        return this.stopped("otherPassword");
+      }
 
       try {
         const { [state.writer]: own, ...others } = remote && !alone ? await this.devicesIn(remote.bytes, stored) : {};

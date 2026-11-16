@@ -969,6 +969,27 @@ describe("ApprovalHandler: signing approval preview + unlocked-session gate", ()
     await clearKeyCache();
   });
 
+  it("gives the size of data that isn't text, for a transaction and each data item", async () => {
+    const binary = Uint8Array.from([0xff, 0xfe, 0x00, 0x41, 0x42, 0x43]);
+    const pending = handler.requestApproval({
+      kind: "batchSignDataItem",
+      origin: "https://bazar.arweave.net",
+      walletId: WALLET_ID,
+      payload: binary,
+      dataItems: [{ data: btoa(String.fromCharCode(...binary)), tags: [] }],
+    });
+    await vi.waitFor(() => expect(presenter.presented.length).toBe(1));
+    const request = await handler.getApproval({ requestId: presenter.presented[0]! });
+    if (request.preview.kind === "connect" || request.preview.kind === "addToken" || request.preview.kind === "scanAttestation") {
+      throw new Error("expected a signing preview");
+    }
+    expect(request.preview).toMatchObject({ decodedData: null, dataSize: 6 });
+    expect(request.preview.items?.[0]).toMatchObject({ decodedData: null, dataSize: 6 });
+
+    await handler.resolveApproval({ requestId: presenter.presented[0]!, approved: false });
+    await expect(pending).rejects.toThrow();
+  });
+
   it("getApproval returns the exact pending ApprovalRequest for a requestId", async () => {
     const pending = handler.requestApproval({
       kind: "sign",
@@ -1354,6 +1375,7 @@ describe("ApprovalHandler: signing approval preview + unlocked-session gate", ()
       expect(request.preview.items).toEqual([
         {
           decodedData: "hello",
+          dataSize: 5,
           tags: [{ name: "Action", value: "Eval" }],
           target,
           payloadHash: request.preview.payloadHash,

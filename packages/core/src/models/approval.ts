@@ -85,6 +85,8 @@ export interface SigningApprovalPreview {
    */
   unreadableTokenTransfer?: boolean;
   decodedData: string | null;
+  /** The signed data's length in bytes, shown when `decodedData` can't show it as text. */
+  dataSize?: number;
   tags: Array<{ name: string; value: string }>;
   payloadHash: string;
   /**
@@ -94,6 +96,7 @@ export interface SigningApprovalPreview {
    */
   items: Array<{
     decodedData: string | null;
+    dataSize?: number;
     tags: Array<{ name: string; value: string }>;
     target: string | null;
     payloadHash: string;

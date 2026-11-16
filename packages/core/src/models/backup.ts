@@ -8,8 +8,9 @@ export interface BackupStatus {
   /** When the backup was last written from this device. */
   lastBackupAt: number | null;
   /**
-   * Why background writes have stopped: the account wants a sign-in, or
-   * the file was removed from the account's side.
+   * Why background writes have stopped: the account wants a sign-in, the
+   * file was removed from the account's side, or another vault's backup,
+   * made under a different password, took its place.
    */
-  problem: "signIn" | "missing" | null;
+  problem: "signIn" | "missing" | "otherPassword" | null;
 }
