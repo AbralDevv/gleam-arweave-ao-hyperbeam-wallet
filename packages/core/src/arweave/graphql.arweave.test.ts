@@ -173,7 +173,7 @@ describe("queryActivityTransactions", () => {
     expect(entry).toMatchObject({ type: "upload", dataSize: "12400" });
   });
 
-  it("reads a collectible send as a send to the recipient in its tags, with the asset as its collectible", async () => {
+  it.each(["0", "1"])("reads a collectible send carrying %s winston as a send to the recipient in its tags, with the asset as its collectible", async (winston) => {
     const recipient = "rEcIpIeNt_AdDrEsS-0123456789abcdefghijklmno";
     const fetchImpl = fakeSidedFetch(
       [
@@ -181,7 +181,7 @@ describe("queryActivityTransactions", () => {
           id: "nft1",
           ownerAddress: ADDRESS,
           recipient: "assetProcess",
-          winston: "0",
+          winston,
           timestamp: 100,
           tags: [
             { name: "App-Name", value: "Other wallet" },

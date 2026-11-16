@@ -1,5 +1,6 @@
 import type { ActivityEntry } from "../models/activity";
 import { COLLECTIBLE_TRANSFER_QUANTITY } from "../ao/collectible-transfer";
+import { L1_ACTIVATION_WINSTON } from "../ao/l1-transfer";
 import { userErrorMessage } from "../models/user-errors";
 
 /**
@@ -215,13 +216,14 @@ function isSwapOrder(tags: GraphQLTag[]): boolean {
 
 /**
  * The recipient and quantity of an L1 token transfer (`ao/l1-transfer.ts`):
- * a zero-AR transaction to the token process whose lowercase tags name
- * the transfer. Other wallets add their own tags, so extra tags are
+ * a transaction to the token process, carrying no AR or the activation
+ * winston, whose lowercase tags name the transfer. Other wallets add their own tags, so extra tags are
  * allowed. Only says a transfer was asked for; the token process alone
  * decides whether it moved.
  */
 function l1TokenTransferOf(node: { quantity?: { winston: string }; tags: GraphQLTag[] }): { recipient: string; quantity: string } | null {
-  if (node.quantity && BigInt(node.quantity.winston || "0") !== 0n) return null;
+  const value = node.quantity?.winston || "0";
+  if (value !== "0" && value !== L1_ACTIVATION_WINSTON) return null;
   const exact = (name: string) => node.tags.find((tag) => tag.name === name)?.value;
   const recipient = exact("recipient");
   const quantity = exact("quantity");
