@@ -58,6 +58,20 @@ export interface DappViewNavigation {
   loading: boolean;
 }
 
+export interface DappViewPageIcon {
+  /** The main frame's origin when the icon was read, or `null` with no page open. */
+  origin: string | null;
+  /**
+   * The page's icon as a base64 `data:image/…` URL, or `null` when it has
+   * none that loads. Fetched without the view's cookies, https only,
+   * at most `PAGE_ICON_MAX_BYTES`.
+   */
+  dataUrl: string | null;
+}
+
+/** The native fetch stops at this many bytes and returns no icon. */
+export const PAGE_ICON_MAX_BYTES = 65_536;
+
 export interface DappViewLoadError {
   url: string;
   message: string;
@@ -90,6 +104,12 @@ export interface DappViewPlugin {
    * check passed and the event was dispatched.
    */
   postMessage(options: { data: string; targetOrigin: string }): Promise<{ delivered: boolean }>;
+  /**
+   * The open page's icon: its `apple-touch-icon`, then its `icon` links,
+   * then `/favicon.ico`, the first that loads as an image. The page picks
+   * the links, so a caller checks `origin` and the data URL itself.
+   */
+  pageIcon(): Promise<DappViewPageIcon>;
   /** Moves the view, for example when the browser chrome around it changes size. */
   setFrame(options: { frame: DappViewRect }): Promise<void>;
   /**

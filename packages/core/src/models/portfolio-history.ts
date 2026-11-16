@@ -33,3 +33,13 @@ export interface PortfolioHistory {
   change: number;
   periodLabel: string;
 }
+
+/**
+ * One token's price over a range, in the display currency the request
+ * named. Only a token with a market price listing has one; an empty
+ * `series` means there is nothing to chart.
+ */
+export interface TokenPriceHistory {
+  range: PortfolioHistoryRange;
+  series: PortfolioHistoryPoint[];
+}

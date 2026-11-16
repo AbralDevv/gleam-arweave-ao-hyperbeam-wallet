@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 const registerPlugin = vi.hoisted(() => vi.fn((name: string) => ({ name })));
 vi.mock("@capacitor/core", () => ({ registerPlugin }));
 
-import { DAPP_VIEW_EVENT, DAPP_VIEW_HANDLER, DappView } from "./index";
+import { DAPP_VIEW_EVENT, DAPP_VIEW_HANDLER, DappView, PAGE_ICON_MAX_BYTES } from "./index";
 
 const SWIFT_DIR = resolve(__dirname, "../ios/Sources/DappViewPlugin");
 const swift = readdirSync(SWIFT_DIR)
@@ -36,7 +36,7 @@ describe("dApp view plugin", () => {
   });
 
   it("exposes every API method natively", () => {
-    for (const method of ["open", "close", "goBack", "reload", "clearData", "postMessage", "setFrame", "setHidden"]) {
+    for (const method of ["open", "close", "goBack", "reload", "clearData", "postMessage", "pageIcon", "setFrame", "setHidden"]) {
       expect(swift).toContain(`CAPPluginMethod(name: "${method}"`);
       expect(kotlin).toMatch(new RegExp(`@PluginMethod\\s+fun ${method}\\(call: PluginCall\\)`));
     }
@@ -49,6 +49,12 @@ describe("dApp view plugin", () => {
     expect(cut).toBeGreaterThan(-1);
     expect(named).toBeGreaterThan(cut);
     expect(prompt.slice(named)).not.toContain(".take(");
+  });
+
+  it("caps the native icon download at the size the API declares", () => {
+    expect(PAGE_ICON_MAX_BYTES).toBe(65_536);
+    expect(swift).toContain("maxBytes = 65_536");
+    expect(kotlin).toContain("MAX_BYTES = 65_536");
   });
 
   it("emits the events the API declares", () => {

@@ -4,5 +4,11 @@
   },
   "eslint.experimental.useFlatConfig": true,
   "eslint.workingDirectories": [{ "mode": "auto" }],
-  "eslint.probe": ["javascript", "javascriptreact", "typescript", "typescriptreact"]
+  "eslint.probe": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+  "stylua.targetReleaseVersion": "latest"
 }

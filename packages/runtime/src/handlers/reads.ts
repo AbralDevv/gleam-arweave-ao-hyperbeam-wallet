@@ -56,6 +56,7 @@ import type {
   TokenBalanceResult,
   TokenMetadata,
   TokenPrice,
+  TokenPriceHistory,
   TimerPort,
   TokenTransport,
   UserToken,
@@ -1232,6 +1233,64 @@ export class ReadsHandler {
         change24h: change === null || unitChange === null ? null : (1 + change) / (1 + unitChange) - 1,
       })),
     ];
+  }
+
+  /**
+   * One registered token's price over `range` in `currency`
+   * (`ProtocolMap.getTokenPriceHistory`). Only `DEFAULT_TOKEN_REGISTRY`
+   * tokens have a price listing to chart; an orderbook-priced token has no
+   * history and gets `series: []`, as does a token shown in its own unit.
+   *
+   * In AR or AO each point is priced against that token at the same
+   * moment. The last point is re-priced at spot so the chart ends on the
+   * figure the Price row shows.
+   */
+  async getTokenPriceHistory(req: {
+    processId: string | null;
+    range: PortfolioHistoryRange;
+    currency?: DisplayCurrency;
+  }): Promise<TokenPriceHistory> {
+    if (!PORTFOLIO_HISTORY_RANGES.includes(req.range)) {
+      throw new Error(dappError(`Unrecognized price history range "${String(req.range)}".`));
+    }
+    const empty: TokenPriceHistory = { range: req.range, series: [] };
+    const currency = req.currency ?? "USD";
+    const token = DEFAULT_TOKEN_REGISTRY.find((candidate) => candidate.processId === req.processId);
+    const source = token?.priceSource;
+    if (!token || !source || token.ticker === currency) return empty;
+
+    const unitSource = DEFAULT_TOKEN_REGISTRY.find((candidate) => candidate.ticker === currency)?.priceSource ?? null;
+
+    const loadUnit = async () => {
+      if (isFiatCurrency(currency)) {
+        const rate = await getUsdFxRate(currency, this.pricesApiUrl);
+        return rate === null ? null : { kind: "fiat" as const, rate };
+      }
+      if (unitSource === null) return null;
+      const [series, spot] = await Promise.all([
+        getHistoricalUsdPrices(unitSource, req.range, this.pricesApiUrl),
+        getUsdPrice(unitSource, this.pricesApiUrl),
+      ]);
+      return series.length === 0 ? null : { kind: "token" as const, priceAt: buildPriceAtFromSeries(series), spot };
+    };
+    const [usdSeries, spotUsd, unit] = await Promise.all([
+      getHistoricalUsdPrices(source, req.range, this.pricesApiUrl),
+      getUsdPrice(source, this.pricesApiUrl),
+      loadUnit(),
+    ]);
+    if (usdSeries.length === 0 || unit === null) return empty;
+
+    const toCurrency = (usd: number, timestamp: number, isLast: boolean): number => {
+      if (unit.kind === "fiat") return usd * unit.rate;
+      const unitUsd = isLast && unit.spot !== null ? unit.spot : unit.priceAt(timestamp);
+      return unitUsd > 0 ? usd / unitUsd : 0;
+    };
+    const series = usdSeries.map((point, index) => {
+      const isLast = index === usdSeries.length - 1;
+      const usd = isLast && spotUsd !== null ? spotUsd : point.usd;
+      return { timestamp: point.timestamp, value: toCurrency(usd, point.timestamp, isLast) };
+    });
+    return { range: req.range, series };
   }
 
   /** USD price and 24h move of each token the node can price from its orderbook; the rest are absent. */

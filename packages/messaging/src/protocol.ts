@@ -30,6 +30,7 @@ import type {
   PortfolioHistoryRange,
   PortfolioScope,
   ScanStats,
+  TokenPriceHistory,
   SecurityPhrase,
   ThemeSettings,
   PendingTransfer,
@@ -132,9 +133,10 @@ export interface ProtocolMap {
   /** Turns the vault backup on and writes the first file. Opens the account's sign-in. */
   setUpBackup(req: { password: string }): BackupStatus;
   /** Writes the backup now, opening the account's sign-in when it is needed. */
-  backUpNow(): BackupStatus;
+  syncBackupNow(): BackupStatus;
   /** Deletes the backup from the account and stops backing up. */
-  turnOffBackup(): BackupStatus;
+  stopBackupSync(): BackupStatus;
+  deleteBackup(): BackupStatus;
   /** Signs in to the account and reports whether it holds a backup. */
   /** Whether the account holds a backup, and the passkeys its header lists, which can stand in for the password. */
   findBackup(): { found: boolean; passkeys: { credentialId: string; prfSalt: string }[] };
@@ -191,6 +193,13 @@ export interface ProtocolMap {
    * priced from its own orderbook; otherwise it has none.
    */
   getTokenPrices(req: { currency: DisplayCurrency; processIds?: string[] }): TokenPrice[];
+  /**
+   * One token's price over `range` in `currency`, for the token details
+   * chart. `processId` is `null` for AR. A token without a market price
+   * listing, or a range its sources can't serve, comes back with
+   * `series: []`.
+   */
+  getTokenPriceHistory(req: { processId: string | null; range: PortfolioHistoryRange; currency: DisplayCurrency }): TokenPriceHistory;
   getLockSettings(): LockSettings;
   getNetworkSettings(): NetworkSettings;
   /**
@@ -208,7 +217,7 @@ export interface ProtocolMap {
   /** One list for the whole vault, most-recently-saved first. */
   listContacts(): Contact[];
   /** The dApp browser's saved and recent sites, as origins, most recent first. */
-  listBrowserSites(): { saved: string[]; recent: string[] };
+  listBrowserSites(): { saved: string[]; recent: string[]; icons: Record<string, string> };
 
   // actions
   // `TransferDraft` carries `walletId` directly — signing
@@ -279,7 +288,7 @@ export interface ProtocolMap {
   saveContact(req: { address: string; name: string }): Contact;
   deleteContact(req: { address: string }): void;
   /** Saves the origin of an http(s) `url`; saving it again moves it to the top. */
-  saveBrowserSite(req: { url: string }): void;
+  saveBrowserSite(req: { url: string; icon?: string }): void;
   removeBrowserSite(req: { origin: string }): void;
   /** Keeps the 10 most recent origins, one entry per origin. */
   recordRecentSite(req: { url: string }): void;

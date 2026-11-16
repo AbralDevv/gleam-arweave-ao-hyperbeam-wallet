@@ -2,12 +2,15 @@ import { useRef, useState } from "react";
 import { cn } from "@gleam/ui/src/primitives/cn.ts";
 import { useT, type TFunction } from "../../../i18n";
 import { BUILT_IN_SITES, knownSite, matchSites, parseAddress, siteHost, type KnownSite } from "./address";
+import { BUILT_IN_ICONS } from "./built-in-icons";
 
 export interface StartScreenProps {
   /** What the user has typed in the address field. */
   query: string;
   saved: readonly string[];
   recent: readonly string[];
+  /** A saved site's stored icon, by origin. */
+  icons: Readonly<Record<string, string>>;
   onOpen: (url: string) => void;
   onRemoveSaved: (origin: string) => void;
   /** Present only where the host can clear what sites stored. */
@@ -21,11 +24,13 @@ function sitesOf(urls: readonly string[]): KnownSite[] {
 
 /**
  * Where a page starts: saved sites, then the built-in dApps, then recent
- * ones. Typing narrows the same lists. Rows carry a letter, never a
- * fetched icon, so showing this screen makes no network request.
+ * ones. Typing narrows the same lists. An icon is bundled (built-ins) or
+ * stored when the site was saved, and every other row carries a letter, so
+ * showing this screen makes no network request.
  */
-export function StartScreen({ query, saved, recent, onOpen, onRemoveSaved, onClearSiteData, onClearRecent }: StartScreenProps) {
+export function StartScreen({ query, saved, recent, icons, onOpen, onRemoveSaved, onClearSiteData, onClearRecent }: StartScreenProps) {
   const t = useT();
+  const iconOf = (url: string): string | undefined => icons[url] ?? BUILT_IN_ICONS[url];
   const savedSites = sitesOf(saved);
   const builtIn = sitesOf(BUILT_IN_SITES);
   const shown = new Set([...savedSites, ...builtIn].map((site) => site.host));
@@ -38,7 +43,7 @@ export function StartScreen({ query, saved, recent, onOpen, onRemoveSaved, onCle
     return (
       <div className="flex flex-col gap-1 px-5 pb-6">
         {matches.map((site) => (
-          <SiteRow key={site.url} host={site.host} onOpen={() => onOpen(site.url)} />
+          <SiteRow key={site.url} host={site.host} icon={iconOf(site.url)} onOpen={() => onOpen(site.url)} />
         ))}
         {address && typed ? (
           <SiteRow host={typed.host} insecure={typed.insecure} caption={t("browser.openAddress")} onOpen={() => onOpen(address)} />
@@ -58,6 +63,7 @@ export function StartScreen({ query, saved, recent, onOpen, onRemoveSaved, onCle
             <SiteRow
               key={site.url}
               host={site.host}
+              icon={iconOf(site.url)}
               onOpen={() => onOpen(site.url)}
               onRemove={() => onRemoveSaved(site.url)}
             />
@@ -66,7 +72,7 @@ export function StartScreen({ query, saved, recent, onOpen, onRemoveSaved, onCle
       ) : null}
       <Section title={t("browser.dapps")}>
         {builtIn.map((site) => (
-          <SiteRow key={site.url} host={site.host} onOpen={() => onOpen(site.url)} />
+          <SiteRow key={site.url} host={site.host} icon={iconOf(site.url)} onOpen={() => onOpen(site.url)} />
         ))}
       </Section>
       {recentSites.length > 0 ? (
@@ -183,6 +189,8 @@ const HOLD_MS = 500;
 
 interface SiteRowProps {
   host: string;
+  /** A bundled or stored image URL, never one that asks the site. */
+  icon?: string;
   insecure?: boolean;
   caption?: string;
   onOpen: () => void;
@@ -190,7 +198,7 @@ interface SiteRowProps {
   onRemove?: () => void;
 }
 
-function SiteRow({ host, insecure = false, caption, onOpen, onRemove }: SiteRowProps) {
+function SiteRow({ host, icon, insecure = false, caption, onOpen, onRemove }: SiteRowProps) {
   const t = useT();
   const [removing, setRemoving] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -231,7 +239,7 @@ function SiteRow({ host, insecure = false, caption, onOpen, onRemove }: SiteRowP
         }}
         className="flex min-h-14 min-w-0 flex-1 items-center gap-3 rounded-xl py-2 text-left active:bg-mist focus-visible:outline focus-visible:outline-2 focus-visible:outline-foreground"
       >
-        <SiteAvatar host={host} />
+        <SiteAvatar host={host} icon={icon} />
         <span className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-body font-semibold text-foreground">{host}</span>
           {caption || insecure ? (
@@ -263,9 +271,17 @@ function SiteRow({ host, insecure = false, caption, onOpen, onRemove }: SiteRowP
   );
 }
 
-/** A letter on a quiet square, so the start screen never asks a site for its icon. */
-export function SiteAvatar({ host }: { host: string }) {
+/** The site's bundled or stored icon, or a letter when it has none or it fails to draw. */
+export function SiteAvatar({ host, icon }: { host: string; icon?: string }) {
+  const [failed, setFailed] = useState(false);
   const letter = host.replace(/^www\./, "").charAt(0).toUpperCase();
+  if (icon && !failed) {
+    return (
+      <span aria-hidden="true" className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-mist">
+        <img src={icon} alt="" className="h-6 w-6 object-contain" onError={() => setFailed(true)} />
+      </span>
+    );
+  }
   return (
     <span
       aria-hidden="true"

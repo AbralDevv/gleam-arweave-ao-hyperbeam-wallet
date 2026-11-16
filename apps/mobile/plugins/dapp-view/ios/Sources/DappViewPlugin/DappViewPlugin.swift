@@ -15,6 +15,7 @@ public class DappViewPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "reload", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "clearData", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "postMessage", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "pageIcon", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setFrame", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setHidden", returnType: CAPPluginReturnPromise)
     ]
@@ -118,6 +119,16 @@ public class DappViewPlugin: CAPPlugin, CAPBridgedPlugin {
             view.deliver(data, targetOrigin: targetOrigin) { delivered in
                 call.resolve(["delivered": delivered])
             }
+        }
+    }
+
+    @objc func pageIcon(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            guard let webView = self?.dappView?.webView else {
+                call.resolve(["origin": NSNull(), "dataUrl": NSNull()])
+                return
+            }
+            PageIcon.read(from: webView) { call.resolve($0) }
         }
     }
 

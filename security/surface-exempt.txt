@@ -37,6 +37,8 @@ packages/app/src/screens/points/src/useCopy.ts A screen outside the key, signing
 packages/app/src/screens/points/src/usePoints.ts A screen outside the key, signing and approval paths.
 packages/app/src/screens/send/src/SendView.tsx The send form; transfer-review (listed) shows what is sent and the background checks it.
 packages/app/src/screens/send/src/TokenInfoPanel.tsx A screen outside the key, signing and approval paths.
+packages/app/src/screens/send/src/TokenPriceChart.tsx A screen outside the key, signing and approval paths.
+packages/app/src/screens/send/src/useTokenPriceHistory.ts A screen outside the key, signing and approval paths.
 packages/app/src/screens/send/src/useLookalikeOf.ts A screen outside the key, signing and approval paths.
 packages/app/src/screens/send/src/useSendQuotes.ts A screen outside the key, signing and approval paths.
 packages/app/src/security-phrase-icon.ts Display preferences and share text.
@@ -106,6 +108,7 @@ packages/ui/src/components/wallet/CollectibleThumbnail.tsx Wallet, balance and a
 packages/ui/src/components/wallet/EmptyState.tsx Wallet, balance and activity display outside the approval preview.
 packages/ui/src/components/wallet/NetworkErrorBanner.tsx Wallet, balance and activity display outside the approval preview.
 packages/ui/src/components/wallet/PortfolioChart.tsx Wallet, balance and activity display outside the approval preview.
+packages/ui/src/components/wallet/chart-path.ts Wallet, balance and activity display outside the approval preview.
 packages/ui/src/components/wallet/QrCode.tsx Wallet, balance and activity display outside the approval preview.
 packages/ui/src/components/wallet/SendReceiveActions.tsx Wallet, balance and activity display outside the approval preview.
 packages/ui/src/components/wallet/SkeletonRow.tsx Wallet, balance and activity display outside the approval preview.
@@ -133,12 +136,15 @@ packages/app/src/App.tsx The shared shell; mounts the listed approval, onboardin
 packages/app/src/pointer-focus.ts Focus-ring styling; decides nothing.
 packages/app/src/theme.tsx Theme context and document attribute; display only.
 packages/app/src/screens/browser/index.tsx A screen outside the key, signing and approval paths.
+packages/app/src/screens/browser/icons/ao.svg A bundled image the start screen draws; no script.
+packages/app/src/screens/browser/icons/bazar.svg A bundled image the start screen draws; no script.
+packages/app/src/screens/browser/icons/permatell.svg A bundled image the start screen draws; no script.
+packages/app/src/screens/browser/src/built-in-icons.ts A screen outside the key, signing and approval paths.
 packages/app/src/screens/browser/src/StartScreen.tsx A screen outside the key, signing and approval paths.
 packages/app/src/screens/browser/src/useBrowserSites.ts A screen outside the key, signing and approval paths.
 packages/app/src/screens/collectibles/index.tsx A screen outside the key, signing and approval paths.
 packages/app/src/screens/collectibles/src/CollectibleDetailView.tsx A screen outside the key, signing and approval paths.
-packages/app/src/screens/collectibles/src/CollectiblesGrid.tsx A screen outside the key, signing and approval paths.
-packages/app/src/screens/collectibles/src/groupCollectibles.ts Groups collectibles for display; decides nothing.
+packages/app/src/screens/collectibles/src/CollectiblesGallery.tsx A screen outside the key, signing and approval paths.
 packages/app/src/screens/connected-apps/index.tsx A screen outside the key, signing and approval paths.
 packages/app/src/screens/connected-apps/src/ConnectedAppsView.tsx Grant list and revoke buttons; revocation is the listed revokeGrant handler, which also rejects pending approvals.
 packages/app/src/screens/site-wallet/index.tsx A screen outside the key, signing and approval paths.

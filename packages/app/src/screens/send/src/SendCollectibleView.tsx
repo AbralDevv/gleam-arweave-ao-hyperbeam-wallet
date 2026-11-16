@@ -279,7 +279,7 @@ export function SendCollectibleView({ runtime, wallet, collectible, onBack, onDo
             <ScreenFooter pinned={false} className="pb-6 pt-5">
               <ReviewButtons
                 secondaryLabel={t("transferReview.cancel")}
-                onSecondary={() => setStep(composeStep(step.recipient))}
+                onSecondary={onBack}
                 primaryLabel={
                   step.submitting
                     ? signsOnDevice

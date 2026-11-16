@@ -19,6 +19,7 @@ export function TokenInfoPanel({
   balanceDisplay,
   balanceValue,
   priceDisplay,
+  chart,
 }: {
   token: TokenBalance | null;
   /** Already filtered by the Token logos setting and the token's Show/Hide choice. */
@@ -27,6 +28,8 @@ export function TokenInfoPanel({
   /** The balance in the display currency, already formatted. */
   balanceValue: string | undefined;
   priceDisplay: string | undefined;
+  /** The price chart, or nothing for a token without a price history. */
+  chart?: ReactNode;
 }) {
   const t = useT();
   const ticker = token === null ? "AR" : displayTicker(token.ticker);
@@ -47,6 +50,8 @@ export function TokenInfoPanel({
           <span className="text-label text-muted">{ticker}</span>
         </div>
       </div>
+
+      {chart}
 
       <dl className="flex flex-col gap-3">
         {balanceDisplay !== undefined ? (

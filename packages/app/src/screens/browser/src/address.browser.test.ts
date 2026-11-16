@@ -7,6 +7,12 @@ const SITES = [
   "https://recent.example",
 ].map((url) => knownSite(url) as KnownSite);
 
+describe("BUILT_IN_SITES", () => {
+  it("lists the built-in dApps in alphabetical order, ignoring www.", () => {
+    expect(BUILT_IN_SITES).toEqual(["https://ao.arweave.net/", "https://bazar.arweave.net/", "https://www.permatell.xyz/"]);
+  });
+});
+
 describe("parseAddress", () => {
   it("keeps an http(s) URL as typed", () => {
     expect(parseAddress("https://bazar.arweave.net/#/path")).toBe("https://bazar.arweave.net/#/path");
@@ -58,7 +64,7 @@ describe("siteHost", () => {
 
 describe("matchSites", () => {
   it("matches a part of the host, in the order given, ignoring case and scheme", () => {
-    expect(matchSites("ARWEAVE", SITES).map((site) => site.host)).toEqual(["bazar.arweave.net", "ao.arweave.net"]);
+    expect(matchSites("ARWEAVE", SITES).map((site) => site.host)).toEqual(["ao.arweave.net", "bazar.arweave.net"]);
     expect(matchSites("https://my.", SITES).map((site) => site.host)).toEqual(["my.example"]);
   });
 

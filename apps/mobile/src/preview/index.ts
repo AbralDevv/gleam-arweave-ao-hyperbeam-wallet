@@ -52,6 +52,7 @@ function createPreviewDappBrowser(): MobileDappBrowser {
     setFrame: async () => {},
     setHidden: async () => {},
     clearSiteData: async () => {},
+    pageIcon: async () => null,
     setSheetUp: async () => {},
     subscribe(listener) {
       listeners.add(listener);

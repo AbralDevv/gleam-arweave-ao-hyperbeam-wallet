@@ -34,6 +34,7 @@ import { feeFiatText } from "../../../transfer-review/model";
 import { validateSendAmount } from "../../activity/src/validateSendAmount";
 import { amountSchema, firstIssueMessage, recipientSchema } from "./sendFormSchema";
 import { TokenInfoPanel } from "./TokenInfoPanel";
+import { hasPriceHistory, TokenPriceChart } from "./TokenPriceChart";
 import { useLookalikeOf } from "./useLookalikeOf";
 import { fetchSendFeeQuote, useRecipientAssessment, useSendFeeQuote } from "./useSendQuotes";
 import { isTokenHidden, readRowVisibility, sendTokenLogo, shownTokenLogo } from "../../../token-visibility";
@@ -321,6 +322,7 @@ export function SendView({ runtime, wallet, token, recipient, onBack, onDone }: 
 
     return (
       <ComposeStep
+        runtime={runtime}
         wallet={wallet}
         token={selectedToken}
         balancesQuery={balancesQuery}
@@ -517,6 +519,7 @@ export function SendView({ runtime, wallet, token, recipient, onBack, onDone }: 
         ownWallet={ownWalletFor(step.recipient)}
         signsOnDevice={isHardwareWalletMethod(wallet.method)}
         onBack={() => setStep({ ...INITIAL_STEP, recipient: step.recipient, amountDisplay: step.amountDisplay })}
+        onCancel={onBack}
         onSign={() => void handleSign()}
       />
     );
@@ -535,6 +538,7 @@ export function SendView({ runtime, wallet, token, recipient, onBack, onDone }: 
 }
 
 function ComposeStep({
+  runtime,
   wallet,
   token,
   balancesQuery,
@@ -564,6 +568,7 @@ function ComposeStep({
   onConfirmSaveAddress,
   savingAddress,
 }: {
+  runtime: RuntimePort;
   wallet: WalletSummary;
   token: TokenBalance | null;
   balancesQuery: UseQueryResult<WalletBalances>;
@@ -674,6 +679,11 @@ function ComposeStep({
             balanceDisplay={balanceDisplay}
             balanceValue={balanceValue}
             priceDisplay={price !== undefined && currency !== undefined && currency !== ticker ? formatCurrencyValue(price, currency) : undefined}
+            chart={
+              currency !== undefined && currency !== ticker && hasPriceHistory(token?.processId ?? null) ? (
+                <TokenPriceChart runtime={runtime} processId={token?.processId ?? null} currency={currency} />
+              ) : null
+            }
           />
         </div>
       </div>
@@ -1129,6 +1139,7 @@ function ReviewStep({
   ownWallet,
   signsOnDevice,
   onBack,
+  onCancel,
   onSign,
 }: {
   token: TokenBalance | null;
@@ -1146,6 +1157,8 @@ function ReviewStep({
   /** A hardware wallet signs in the approval window the background opens; the popup may close when it takes focus. */
   signsOnDevice: boolean;
   onBack: () => void;
+  /** Leaves the send flow; `onBack` only returns to the form. */
+  onCancel: () => void;
   onSign: () => void;
 }) {
   const t = useT();
@@ -1189,7 +1202,7 @@ function ReviewStep({
             {warned ? null : <p className="text-center text-label text-muted">{t("send.cannotBeUndone")}</p>}
             <ReviewButtons
               secondaryLabel={t("transferReview.cancel")}
-              onSecondary={onBack}
+              onSecondary={onCancel}
               primaryLabel={
                 step.submitting
                   ? signsOnDevice

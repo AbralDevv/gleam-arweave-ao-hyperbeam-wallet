@@ -33,6 +33,7 @@ function fakeBrowser() {
     setFrame: vi.fn(async () => {}),
     setHidden: vi.fn(async () => {}),
     clearSiteData: vi.fn(async () => {}),
+    pageIcon: vi.fn(async (): Promise<{ origin: string; dataUrl: string } | null> => null),
     subscribe: (next) => {
       listener = next;
       return () => {};
@@ -41,9 +42,12 @@ function fakeBrowser() {
   return { port, emit: (event: DappBrowserEvent) => act(() => listener(event)) };
 }
 
-function fakeRuntime(sites = { saved: [] as string[], recent: [] as string[] }, grants: unknown[] = []) {
+function fakeRuntime(
+  sites: { saved: string[]; recent: string[]; icons?: Record<string, string> } = { saved: [], recent: [] },
+  grants: unknown[] = [],
+) {
   const send = vi.fn(async ({ type }: { type: string }) => {
-    if (type === "listBrowserSites") return sites;
+    if (type === "listBrowserSites") return { icons: {}, ...sites };
     if (type === "getConnectedApps") return grants;
     return undefined;
   });
@@ -120,6 +124,24 @@ describe("BrowserView start screen", () => {
     // A site shown above isn't listed again as recent.
     expect(screen.getAllByText("mine.example")).toHaveLength(1);
     expect(browser.port.open).not.toHaveBeenCalled();
+  });
+
+  it("lists the built-in dApps alphabetically, and draws stored and bundled icons", async () => {
+    const PNG = "data:image/png;base64,iVBORw0KGgo=";
+    const { runtime } = fakeRuntime({ saved: ["https://mine.example"], recent: ["https://recent.example"], icons: { "https://mine.example": PNG } });
+    mount({ runtime });
+
+    const dapps = await screen.findByRole("region", { name: "dApps" });
+    expect(within(dapps).getAllByRole("button").map((row) => row.textContent)).toEqual([
+      "ao.arweave.net",
+      "bazar.arweave.net",
+      "www.permatell.xyz",
+    ]);
+    expect(dapps.querySelectorAll("img")).toHaveLength(3);
+    const saved = screen.getByRole("region", { name: "Saved" });
+    expect(saved.querySelector("img")?.getAttribute("src")).toBe(PNG);
+    // A recent site has no stored icon, so it keeps its letter.
+    expect(screen.getByRole("region", { name: "Recent" }).querySelector("img")).toBeNull();
   });
 
   it("opens a tapped site at the placeholder's frame", async () => {
@@ -200,6 +222,35 @@ describe("BrowserView with a page", () => {
     );
   });
 
+  it("saves the page's icon with the site, only when it came from that site", async () => {
+    const PNG = "data:image/png;base64,iVBORw0KGgo=";
+    for (const [origin, payload] of [
+      ["https://a.example", { url: "https://a.example/page", icon: PNG }],
+      ["https://other.example", { url: "https://a.example/page" }],
+    ] as const) {
+      const browser = fakeBrowser();
+      vi.mocked(browser.port.pageIcon).mockResolvedValue({ origin, dataUrl: PNG });
+      const { runtime, send } = fakeRuntime();
+      mount({ browser: browser.port, runtime, initialUrl: "https://a.example/" });
+      await browser.emit({ kind: "navigation", url: "https://a.example/page", canGoBack: false, loading: false });
+      fireEvent.click(screen.getByLabelText("Save site"));
+      await waitFor(() => expect(send).toHaveBeenCalledWith({ type: "saveBrowserSite", payload }));
+      cleanup();
+    }
+  });
+
+  it("still saves the site when reading its icon fails", async () => {
+    const browser = fakeBrowser();
+    vi.mocked(browser.port.pageIcon).mockRejectedValue(new Error("no view"));
+    const { runtime, send } = fakeRuntime();
+    mount({ browser: browser.port, runtime, initialUrl: "https://a.example/" });
+    await browser.emit({ kind: "navigation", url: "https://a.example/page", canGoBack: false, loading: false });
+    fireEvent.click(screen.getByLabelText("Save site"));
+    await waitFor(() =>
+      expect(send).toHaveBeenCalledWith({ type: "saveBrowserSite", payload: { url: "https://a.example/page" } }),
+    );
+  });
+
   it("covers and uncovers the page when the address is edited", async () => {
     const browser = fakeBrowser();
     mount({ browser: browser.port, initialUrl: "https://a.example/" });
@@ -274,7 +325,7 @@ describe("BrowserView with a page", () => {
     vi.useFakeTimers();
     const send = vi.fn(async ({ type }: { type: string }) => {
       if (type === "getState") return { wallets: [{}], session: null };
-      return type === "listBrowserSites" ? { saved: [], recent: [] } : [];
+      return type === "listBrowserSites" ? { saved: [], recent: [], icons: {} } : [];
     });
     const runtime = { send, onMessage: () => () => {} } as unknown as RuntimePort;
     const view = mount({ runtime, initialUrl: "https://a.example/" });
