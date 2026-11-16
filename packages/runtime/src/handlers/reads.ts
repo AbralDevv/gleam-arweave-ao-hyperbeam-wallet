@@ -10,6 +10,7 @@ import {
   type ReadTokenBalanceOptions,
 } from "@gleam/core/src/ao/index.ts";
 import { peerFailoverOrder, withPeerFailover } from "@gleam/core/src/ao/peer-failover.ts";
+import { COLLECTIBLE_TRANSFER_QUANTITY } from "@gleam/core/src/ao/collectible-transfer.ts";
 import { getBalance as getArBalance } from "@gleam/core/src/arweave/balance.ts";
 import {
   queryActivityTransactions,
@@ -44,6 +45,7 @@ import type {
   ActivityEntry,
   ActivityPage,
   Collectible,
+  CollectibleRef,
   DisplayCurrency,
   NetworkSettings,
   PendingTransfer,
@@ -130,6 +132,8 @@ const COLLECTIBLES_KEY_PREFIX = "local:collectibles:";
 // Holdings change rarely and discovery is dozens of requests, so a popup
 // open within this window reuses the last result.
 const COLLECTIBLES_TTL_MS = 10 * 60 * 1000;
+/** Each unconfirmed receipt can cost a metadata and a balance read. */
+const MAX_COLLECTIBLE_RECEIPTS = 10;
 const ACTIVITY_PAGE_LIMIT = 50;
 const WINSTON_PER_AR = 1_000_000_000_000;
 
@@ -833,8 +837,15 @@ export class ReadsHandler {
       // Receipts are extra detail; a failed query shouldn't blank the feed.
       queryL1TokenReceipts(req.address, settings.gatewayUrl, ACTIVITY_PAGE_LIMIT).catch(() => []),
     ]);
-    const receipts = await this.receiptsForListedTokens(req.address, l1Receipts, settings);
-    const gatewayEntries = [...(await this.resolveSingleUnitTransfers([...arEntries, ...aoEntries], settings)), ...receipts];
+    const [receipts, collectibleReceipts] = await Promise.all([
+      this.receiptsForListedTokens(req.address, l1Receipts, settings),
+      this.heldCollectibleReceipts(req.address, l1Receipts, settings),
+    ]);
+    const gatewayEntries = [
+      ...(await this.resolveSingleUnitTransfers([...arEntries, ...aoEntries], settings)),
+      ...receipts,
+      ...collectibleReceipts,
+    ];
 
     return mergeActivity(localLog, gatewayEntries, ACTIVITY_PAGE_LIMIT);
   }
@@ -867,6 +878,59 @@ export class ReadsHandler {
       }),
     );
     return receipts.filter((entry) => entry.token && fungible.has(entry.token));
+  }
+
+  /**
+   * L1 receipts of a collectible the wallet holds now, as collectible
+   * receives. A receipt is anyone's claim, so one counts only for an asset
+   * whose spawn tags make it unique and whose balance this wallet holds:
+   * the cached collectibles, else a balance read, for the newest receipt
+   * of each asset and at most `MAX_COLLECTIBLE_RECEIPTS` of them.
+   */
+  private async heldCollectibleReceipts(
+    address: string,
+    receipts: ActivityEntry[],
+    settings: NetworkSettings,
+  ): Promise<ActivityEntry[]> {
+    const newest = new Map<string, ActivityEntry>();
+    for (const entry of receipts) {
+      if (entry.token && entry.amount === COLLECTIBLE_TRANSFER_QUANTITY && !newest.has(entry.token)) newest.set(entry.token, entry);
+    }
+    if (newest.size === 0) return [];
+    const raw = await this.storage.get<unknown>(`${COLLECTIBLES_KEY_PREFIX}${address}`);
+    const cached = new Map((isCollectiblesCache(raw) ? raw.collectibles : []).map((collectible) => [collectible.id, collectible]));
+    const held = await Promise.all(
+      [...newest.values()].slice(0, MAX_COLLECTIBLE_RECEIPTS).map(async (entry): Promise<ActivityEntry | null> => {
+        const id = entry.token!;
+        const metadata = await this.tryTokenMetadata(id, settings);
+        if (metadata?.transport !== "l1" || metadata.assetClass !== "unique") return null;
+        const known = cached.get(id);
+        if (!known) {
+          const quantity = await readTokenBalance({
+            processId: id,
+            address,
+            transport: "l1",
+            gatewayUrl: settings.gatewayUrl,
+            peerUrl: settings.activePeerUrl,
+          }).catch(() => "0");
+          if (BigInt(quantity) === 0n) return null;
+        }
+        const collectible: CollectibleRef = known
+          ? { id, name: known.name, ...(known.imageUrl ? { imageUrl: known.imageUrl } : {}) }
+          : { id, ...(metadata.name ? { name: metadata.name } : {}) };
+        return {
+          txId: entry.txId,
+          type: "receive",
+          status: entry.status,
+          address: entry.address,
+          amount: null,
+          tags: entry.tags,
+          timestamp: entry.timestamp,
+          collectible,
+        };
+      }),
+    );
+    return held.filter((entry): entry is ActivityEntry => entry !== null);
   }
 
   /**

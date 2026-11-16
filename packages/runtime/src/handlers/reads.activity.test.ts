@@ -1607,6 +1607,60 @@ describe("ReadsHandler: discovered tokens", () => {
     expect(one?.collectible).toBeUndefined();
     expect(page.entries.find((e) => e.txId === "forged")).toBeUndefined();
   });
+
+  it("shows an L1 receipt of a collectible the wallet holds as a collectible receive, and drops one it doesn't hold", async () => {
+    const CACHED = "C".repeat(43);
+    const HELD = "H".repeat(43);
+    const GONE = "G".repeat(43);
+    const unique = (processId: string, name: string) => ({ ...meta(processId, "ASSET"), assetClass: "unique" as const, denomination: 0, name });
+    const storage = createFakeStorage();
+    await peerSettings(storage);
+    for (const [id, name] of [[CACHED, "Cached POMP"], [HELD, "Held POMP"], [GONE, "Gone POMP"]] as const) {
+      await storage.set(`local:tokenMetadata:${id}`, unique(id, name));
+    }
+    await storage.set(`local:collectibles:${WALLET}`, {
+      savedAt: Date.now(),
+      collectibles: [{ id: CACHED, name: "Cached POMP", ticker: "ASSET", imageUrl: `https://arweave.net/${CACHED}` }],
+    });
+    const sender = "U".repeat(43);
+    const receipt = (id: string, target: string) => ({
+      cursor: id,
+      node: {
+        id,
+        owner: { address: sender },
+        recipient: target,
+        quantity: { winston: "1" },
+        tags: [
+          { name: "action", value: "transfer" },
+          { name: "recipient", value: WALLET },
+          { name: "quantity", value: "1" },
+        ],
+        block: { timestamp: 10 },
+      },
+    });
+    globalThis.fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/now/as/balance")) return new Response(url.includes(HELD) ? "1" : "0");
+      if (url.includes("/slot/current")) return new Response("1");
+      const body = String(init?.body ?? "");
+      const edges = body.includes("values: $address") ? [receipt("r-cached", CACHED), receipt("r-held", HELD), receipt("r-gone", GONE)] : [];
+      return { ok: true, status: 200, json: async () => ({ data: { transactions: { edges } } }) };
+    }) as unknown as typeof fetch;
+
+    const page = await new ReadsHandler(storage, undefined, noDiscovery).getActivity({ address: WALLET });
+
+    expect(page.entries.find((e) => e.txId === "r-cached")).toEqual({
+      txId: "r-cached",
+      type: "receive",
+      status: "confirmed",
+      address: sender,
+      amount: null,
+      tags: expect.any(Array),
+      timestamp: 10_000,
+      collectible: { id: CACHED, name: "Cached POMP", imageUrl: `https://arweave.net/${CACHED}` },
+    });
+    expect(page.entries.find((e) => e.txId === "r-held")).toMatchObject({ type: "receive", amount: null, collectible: { id: HELD, name: "Held POMP" } });
+    expect(page.entries.find((e) => e.txId === "r-gone")).toBeUndefined();
+  });
 });
 
 describe("ReadsHandler: pending transfers", () => {
