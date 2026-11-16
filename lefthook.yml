@@ -3,7 +3,7 @@ pre-commit:
   jobs:
     - name: eslint
       glob: "*.{js,jsx,ts,tsx}"
-      run: pnpm eslint --max-warnings=0 {staged_files}
+      run: pnpm eslint --max-warnings=0 --no-warn-ignored {staged_files}
 
     - name: deps
       glob: "*.{ts,tsx,js,mjs,cjs}"

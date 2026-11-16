@@ -181,6 +181,9 @@ tests check Gleam's ANS-104 bytes against it.
   `trimTrailingSlashes`, never a regex (CodeQL flags the backtracking).
   Bytes that may come from another realm are tested with
   `ArrayBuffer.isView`, not `instanceof`.
+- **No remote scripts.** The site serves every script it runs (copy and
+  review a vendor's file instead): a breached script host can rewrite
+  download links and addresses on every page.
 - **Activity** merges the local optimistic log with gateway GraphQL. A
   background alarm settles pending entries every minute.
 - **Tests** sit next to the file they test (`foo.ts` → `foo.*.test.ts`).

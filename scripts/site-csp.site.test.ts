@@ -29,6 +29,23 @@ describe("site CSP", () => {
     });
   }
 
+  // A script host the site doesn't control can swap download links and
+  // addresses on every page if it's breached, as Optimizely's CDN was.
+  it("allows scripts only from the site itself or by hash", () => {
+    for (const source of scriptSrc.trim().split(/\s+/)) {
+      expect(source, "serve the script from apps/site instead").toMatch(/^'(self|sha256-[A-Za-z0-9+/=]+)'$/);
+    }
+  });
+
+  it("loads every script from the site", () => {
+    for (const page of readdirSync(SITE).filter((file) => file.endsWith(".html"))) {
+      const html = readFileSync(join(SITE, page), "utf8");
+      for (const [, src] of html.matchAll(/<script[^>]*\bsrc="([^"]*)"/gi)) {
+        expect(src, `${page} loads a remote script`).not.toMatch(/^(https?:)?\/\//i);
+      }
+    }
+  });
+
   it("never allows inline event handlers", () => {
     for (const page of readdirSync(SITE).filter((file) => file.endsWith(".html"))) {
       expect(readFileSync(join(SITE, page), "utf8")).not.toMatch(/\son[a-z]+="/i);
