@@ -15,6 +15,8 @@ export interface DiscoveredPeers {
   urls: string[];
   /** The community and discovered peers that compute `arweave-scheduler@1.0` processes (`findL1TokenNodes`). */
   l1Urls?: string[];
+  /** The `L1_TOKEN_NODE_URLS` that failed that probe, skipped until one passes. */
+  l1Down?: string[];
 }
 
 /**
@@ -87,14 +89,20 @@ async function readStoredPeerUrls(storage: StoragePort): Promise<string[]> {
   }
 }
 
+function httpsUrls(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((url): url is string => typeof url === "string" && url.startsWith("https://")) : [];
+}
+
 /**
- * Where L1 token reads go besides the gateway: `L1_TOKEN_NODE_URLS`, then
- * the peers the last discovery found serving them.
+ * Where L1 token reads go besides the gateway: the `L1_TOKEN_NODE_URLS`
+ * that passed the last probe, then the peers it found serving them. With
+ * none of those, every shipped node, so the list is never empty.
  */
 export async function readL1NodeUrls(storage: StoragePort): Promise<string[]> {
-  const found = (await readDiscoveredPeers(storage))?.l1Urls;
-  const urls = Array.isArray(found) ? found.filter((url): url is string => typeof url === "string" && url.startsWith("https://")) : [];
-  return [...new Set([...L1_TOKEN_NODE_URLS, ...urls])];
+  const stored = await readDiscoveredPeers(storage);
+  const down = new Set(httpsUrls(stored?.l1Down));
+  const urls = [...new Set([...L1_TOKEN_NODE_URLS.filter((url) => !down.has(url)), ...httpsUrls(stored?.l1Urls)])];
+  return urls.length > 0 ? urls : [...L1_TOKEN_NODE_URLS];
 }
 
 /** Reads the last discovery result, if any. */
@@ -107,9 +115,10 @@ export async function readDiscoveredPeers(storage: StoragePort): Promise<Discove
 }
 
 /**
- * Re-runs discovery, and the L1 probe over the community and discovered
- * peers, when the stored result is over a day old. An empty result never
- * overwrites a non-empty one, so an outage doesn't wipe either list.
+ * Re-runs discovery, and the L1 probe over the shipped L1 nodes and the
+ * community and discovered peers, when the stored result is over a day
+ * old. An empty result never overwrites a non-empty one, so an outage
+ * doesn't wipe either list.
  */
 export async function refreshDiscoveredPeersIfDue(
   storage: StoragePort,
@@ -122,15 +131,16 @@ export async function refreshDiscoveredPeersIfDue(
     if (existing && now() - existing.at < DISCOVERY_INTERVAL_MS) return;
     const found = await discoverHyperBeamPeers({ gatewayUrl: await gatewayUrl(), fetchImpl });
     const urls = found.length === 0 && existing && existing.urls.length > 0 ? existing.urls : found;
-    const known = new Set(L1_TOKEN_NODE_URLS);
-    const l1Found = await findL1TokenNodes({
-      candidates: [...COMMUNITY_HYPERBEAM_PEER_URLS, ...urls].filter((url) => !known.has(url)),
-      fetchImpl,
-    });
-    const l1Urls = l1Found.length === 0 && existing?.l1Urls?.length ? existing.l1Urls : l1Found;
-    if (found.length === 0 && l1Found.length === 0 && existing) return;
+    const shipped = new Set(L1_TOKEN_NODE_URLS);
+    const passed = await findL1TokenNodes({ candidates: [...L1_TOKEN_NODE_URLS, ...COMMUNITY_HYPERBEAM_PEER_URLS, ...urls], fetchImpl });
+    // Nothing passing, the shipped nodes included, is this device offline,
+    // not every node down: keep the last probe's answer.
+    const probed = passed.length > 0;
+    const l1Urls = probed ? passed.filter((url) => !shipped.has(url)) : (existing?.l1Urls ?? []);
+    const l1Down = probed ? L1_TOKEN_NODE_URLS.filter((url) => !passed.includes(url)) : (existing?.l1Down ?? []);
+    if (found.length === 0 && !probed && existing) return;
     // eslint-disable-next-line gleam/no-storage-read-modify-write -- a cache fill from the network
-    await storage.set<DiscoveredPeers>(DISCOVERED_PEERS_KEY, { at: now(), urls, l1Urls });
+    await storage.set<DiscoveredPeers>(DISCOVERED_PEERS_KEY, { at: now(), urls, l1Urls, l1Down });
   } catch (error) {
     console.error("HyperBEAM peer discovery failed:", error);
   }

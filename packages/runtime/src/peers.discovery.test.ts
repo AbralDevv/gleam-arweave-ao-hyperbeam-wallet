@@ -113,7 +113,7 @@ describe("refreshDiscoveredPeersIfDue", () => {
 
     await refreshDiscoveredPeersIfDue(storage, async () => "https://gw.test", graphqlFetch(["https://b.test"]), () => DAY + 1);
 
-    expect(storage.store.get(DISCOVERED_PEERS_KEY)).toEqual({ at: DAY + 1, urls: ["https://b.test"], l1Urls: [] });
+    expect(storage.store.get(DISCOVERED_PEERS_KEY)).toEqual({ at: DAY + 1, urls: ["https://b.test"], l1Urls: [], l1Down: [] });
   });
 
   it("stores the peers that serve L1 tokens, and reads them after the shipped nodes", async () => {
@@ -123,21 +123,40 @@ describe("refreshDiscoveredPeersIfDue", () => {
     await refreshDiscoveredPeersIfDue(
       storage,
       async () => "https://gw.test",
-      graphqlFetch(["https://b.test", "https://c.test"], ["https://c.test", community]),
+      graphqlFetch(["https://b.test", "https://c.test"], [...L1_TOKEN_NODE_URLS, "https://c.test", community]),
       () => DAY + 1,
     );
 
-    expect(storage.store.get(DISCOVERED_PEERS_KEY)).toMatchObject({ l1Urls: [community, "https://c.test"] });
+    expect(storage.store.get(DISCOVERED_PEERS_KEY)).toMatchObject({ l1Urls: [community, "https://c.test"], l1Down: [] });
     expect(await readL1NodeUrls(storage)).toEqual([...L1_TOKEN_NODE_URLS, community, "https://c.test"]);
   });
 
-  it("keeps the old L1 nodes when the probe finds none", async () => {
+  it("skips a shipped node that failed the probe until it passes again", async () => {
     const storage = createFakeStorage();
-    await storage.set(DISCOVERED_PEERS_KEY, { at: 0, urls: ["https://a.test"], l1Urls: ["https://a.test"] });
+    const [dead, ...alive] = L1_TOKEN_NODE_URLS;
+
+    await refreshDiscoveredPeersIfDue(storage, async () => "https://gw.test", graphqlFetch([], alive), () => DAY + 1);
+    expect(storage.store.get(DISCOVERED_PEERS_KEY)).toMatchObject({ l1Down: [dead] });
+    expect(await readL1NodeUrls(storage)).toEqual(alive);
+
+    await refreshDiscoveredPeersIfDue(storage, async () => "https://gw.test", graphqlFetch([], [...L1_TOKEN_NODE_URLS]), () => 2 * DAY + 2);
+    expect(await readL1NodeUrls(storage)).toEqual([...L1_TOKEN_NODE_URLS]);
+  });
+
+  it("keeps the last probe's answer when nothing passes, the shipped nodes included", async () => {
+    const storage = createFakeStorage();
+    const [dead] = L1_TOKEN_NODE_URLS;
+    await storage.set(DISCOVERED_PEERS_KEY, { at: 0, urls: ["https://a.test"], l1Urls: ["https://a.test"], l1Down: [dead] });
 
     await refreshDiscoveredPeersIfDue(storage, async () => "https://gw.test", graphqlFetch(["https://b.test"]), () => DAY + 1);
 
-    expect(storage.store.get(DISCOVERED_PEERS_KEY)).toEqual({ at: DAY + 1, urls: ["https://b.test"], l1Urls: ["https://a.test"] });
+    expect(storage.store.get(DISCOVERED_PEERS_KEY)).toEqual({ at: DAY + 1, urls: ["https://b.test"], l1Urls: ["https://a.test"], l1Down: [dead] });
+  });
+
+  it("falls back to every shipped node when all were down and none was found", async () => {
+    const storage = createFakeStorage();
+    await storage.set(DISCOVERED_PEERS_KEY, { at: 0, urls: [], l1Urls: [], l1Down: [...L1_TOKEN_NODE_URLS] });
+    expect(await readL1NodeUrls(storage)).toEqual([...L1_TOKEN_NODE_URLS]);
   });
 
   it("reads only the shipped nodes before any discovery, and skips a stored value that isn't an https URL", async () => {
