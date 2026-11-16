@@ -1251,6 +1251,47 @@ describe("ReadsHandler: promotePendingActivity", () => {
     expect(updatedLog?.find((e) => e.txId === "tx-pending")?.status).toBe("confirmed");
   });
 
+  it("marks the collectibles stale once a collectible send confirms", async () => {
+    const storage = createFakeStorage();
+    const asset = "A".repeat(43);
+    const recipient = "R".repeat(43);
+    await storage.set("local:activityLog:addr1", [
+      { txId: "nft-send", type: "send", status: "pending", address: recipient, amount: null, tags: [], timestamp: 500, collectible: { id: asset, name: "Pic" } },
+    ]);
+    await storage.set("local:collectibles:addr1", { savedAt: Date.now(), collectibles: [], source: "x" });
+    globalThis.fetch = vi.fn(async () =>
+      Response.json({
+        data: {
+          transactions: {
+            edges: [
+              {
+                cursor: "nft-send",
+                node: {
+                  id: "nft-send",
+                  owner: { address: "addr1" },
+                  recipient: asset,
+                  quantity: { winston: "1" },
+                  tags: [
+                    { name: "action", value: "transfer" },
+                    { name: "recipient", value: recipient },
+                    { name: "quantity", value: "1" },
+                  ],
+                  block: { timestamp: 500 },
+                },
+              },
+            ],
+          },
+        },
+      }),
+    ) as unknown as typeof fetch;
+
+    await new ReadsHandler(storage).promotePendingActivity("addr1");
+
+    const log = await storage.get<Array<{ txId: string; status: string }>>("local:activityLog:addr1");
+    expect(log?.find((e) => e.txId === "nft-send")?.status).toBe("confirmed");
+    expect(await storage.get("local:collectibles:addr1")).toMatchObject({ savedAt: 0 });
+  });
+
   it("leaves a still-genuinely-pending entry untouched when the gateway hasn't indexed it yet", async () => {
     const storage = createFakeStorage();
     await storage.set("local:activityLog:addr1", [
@@ -1660,6 +1701,8 @@ describe("ReadsHandler: discovered tokens", () => {
     });
     expect(page.entries.find((e) => e.txId === "r-held")).toMatchObject({ type: "receive", amount: null, collectible: { id: HELD, name: "Held POMP" } });
     expect(page.entries.find((e) => e.txId === "r-gone")).toBeUndefined();
+    // HELD arrived after the cached list was saved, so the next read rediscovers.
+    expect(await storage.get(`local:collectibles:${WALLET}`)).toMatchObject({ savedAt: 0 });
   });
 });
 

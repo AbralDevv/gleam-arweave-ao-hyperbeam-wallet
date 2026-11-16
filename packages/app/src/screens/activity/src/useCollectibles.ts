@@ -5,7 +5,8 @@ import { walletQueryKeys } from "./queryKeys";
 /**
  * The wallet's AO NFTs. Its own query, apart from `useBalances`, so a slow
  * discovery never holds up the token list. The background caches per
- * wallet, so this only goes stale in the popup after a few minutes.
+ * wallet for 90 seconds. Past a minute the popup shows the list it has
+ * while it asks again.
  */
 export function useCollectibles(runtime: RuntimePort, address: string, options: { enabled?: boolean } = {}) {
   return useQuery({
@@ -15,7 +16,7 @@ export function useCollectibles(runtime: RuntimePort, address: string, options: 
         type: "getCollectibles",
         payload: { address },
       }),
-    staleTime: 5 * 60_000,
+    staleTime: 60_000,
     enabled: options.enabled ?? true,
   });
 }

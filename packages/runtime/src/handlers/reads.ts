@@ -131,7 +131,12 @@ const NEVER_MINED_ERROR = "This send never reached a block, so nothing moved.";
 const COLLECTIBLES_KEY_PREFIX = "local:collectibles:";
 // Holdings change rarely and discovery is dozens of requests, so a popup
 // open within this window reuses the last result.
-const COLLECTIBLES_TTL_MS = 10 * 60 * 1000;
+/**
+ * How long a discovered list is reused. The popup shows its own copy while
+ * a rediscovery runs, so a short life costs no wait. Holdings changes the
+ * wallet can see (a receive, a send or order settling) mark it stale sooner.
+ */
+const COLLECTIBLES_TTL_MS = 90 * 1000;
 /** Each unconfirmed receipt can cost a metadata and a balance read. */
 const MAX_COLLECTIBLE_RECEIPTS = 10;
 const ACTIVITY_PAGE_LIMIT = 50;
@@ -259,6 +264,12 @@ function isDiscoveredTokensCache(value: unknown): value is DiscoveredTokensCache
 interface CollectiblesCache {
   savedAt: number;
   collectibles: Collectible[];
+  /** The gateway and peer it was read from; a list read elsewhere is stale. */
+  source?: string;
+}
+
+function collectiblesSource(settings: NetworkSettings): string {
+  return `${settings.gatewayUrl} ${settings.activePeerUrl ?? ""}`;
 }
 
 function isCollectiblesCache(value: unknown): value is CollectiblesCache {
@@ -266,6 +277,7 @@ function isCollectiblesCache(value: unknown): value is CollectiblesCache {
   const candidate = value as Record<string, unknown>;
   return (
     typeof candidate.savedAt === "number" &&
+    (candidate.source === undefined || typeof candidate.source === "string") &&
     Array.isArray(candidate.collectibles) &&
     candidate.collectibles.every(
       (item) =>
@@ -355,7 +367,8 @@ export class ReadsHandler {
     const key = `${COLLECTIBLES_KEY_PREFIX}${req.address}`;
     const raw = await this.storage.get<unknown>(key);
     const cached = isCollectiblesCache(raw) ? raw : null;
-    if (cached && req.refresh !== true && Date.now() - cached.savedAt < COLLECTIBLES_TTL_MS) {
+    const source = collectiblesSource(await this.loadNetworkSettings());
+    if (cached && req.refresh !== true && cached.source === source && Date.now() - cached.savedAt < COLLECTIBLES_TTL_MS) {
       return cached.collectibles;
     }
 
@@ -368,11 +381,23 @@ export class ReadsHandler {
         if (settings.activePeerUrl === null) {
           throw new Error(userErrorMessage("noPeerConfigured"));
         }
-        const collectibles = await withPeerFailover(peerFailoverOrder(settings), (peerUrl) =>
+        const discovered = await withPeerFailover(peerFailoverOrder(settings), (peerUrl) =>
           discoverCollectibles({ address: req.address, gatewayUrl: settings.gatewayUrl, peerUrl }),
         );
+        // A send still pending hasn't reached the asset yet, so its balance
+        // reads as held. It stays off the list until the send settles.
+        const sending = new Set(
+          (await this.loadActivityLog(req.address)).flatMap((entry) =>
+            entry.type === "send" && entry.status === "pending" && entry.collectible ? [entry.collectible.id] : [],
+          ),
+        );
+        const collectibles = discovered.filter((collectible) => !sending.has(collectible.id));
         // Queued behind forgetCollectible, which updates the same cache.
-        await updateStored<CollectiblesCache>(this.storage, key, () => ({ savedAt: Date.now(), collectibles }));
+        await updateStored<CollectiblesCache>(this.storage, key, () => ({
+          savedAt: Date.now(),
+          collectibles,
+          source: collectiblesSource(settings),
+        }));
         return collectibles;
       } catch (error) {
         if (cached) return cached.collectibles;
@@ -395,6 +420,13 @@ export class ReadsHandler {
       isCollectiblesCache(raw)
         ? { ...raw, collectibles: raw.collectibles.filter((collectible) => collectible.id !== req.id) }
         : undefined,
+    );
+  }
+
+  /** Makes the next `getCollectibles` rediscover, keeping the list to show meanwhile. */
+  private async markCollectiblesStale(address: string): Promise<void> {
+    await updateStored<CollectiblesCache>(this.storage, `${COLLECTIBLES_KEY_PREFIX}${address}`, (current) =>
+      isCollectiblesCache(current) ? { ...current, savedAt: 0 } : undefined,
     );
   }
 
@@ -930,7 +962,10 @@ export class ReadsHandler {
         };
       }),
     );
-    return held.filter((entry): entry is ActivityEntry => entry !== null);
+    const received = held.filter((entry): entry is ActivityEntry => entry !== null);
+    // The cached list predates this receive.
+    if (received.some((entry) => !cached.has(entry.collectible!.id))) await this.markCollectiblesStale(address);
+    return received;
   }
 
   /**
@@ -1001,7 +1036,11 @@ export class ReadsHandler {
         settled.set(entry.txId, { ...entry, status: "failed", error: NEVER_MINED_ERROR });
       }
     }
-    if (settled.size > 0) await this.settleActivity(address, settled);
+    if (settled.size === 0) return;
+    await this.settleActivity(address, settled);
+    // A collectible send or market order that confirmed or failed has
+    // changed what the wallet holds, or put back what it hid.
+    if ([...settled.values()].some((entry) => entry.collectible || entry.swap)) await this.markCollectiblesStale(address);
   }
 
   /**

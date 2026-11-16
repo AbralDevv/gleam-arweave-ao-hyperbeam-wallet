@@ -503,6 +503,19 @@ export function MainScreenView({
   const listDockOffsetRef = useRef(0);
   const balancesQuery = useBalances(runtime, wallet.address);
   const activityQuery = useActivity(runtime, wallet.address);
+  // A collectible received since the list was fetched: refetch it, once per activity read.
+  const collectiblesRefetchedFor = useRef(0);
+  useEffect(() => {
+    const listed = collectiblesQuery.data;
+    if (!listed || collectiblesRefetchedFor.current === activityQuery.dataUpdatedAt) return;
+    const ids = new Set(listed.map((collectible) => collectible.id));
+    const missing = activityQuery.data?.entries.some(
+      (entry) => entry.type === "receive" && entry.collectible && !ids.has(entry.collectible.id),
+    );
+    if (!missing) return;
+    collectiblesRefetchedFor.current = activityQuery.dataUpdatedAt;
+    void queryClient.invalidateQueries({ queryKey: walletQueryKeys.collectibles(wallet.address) });
+  }, [activityQuery.data, activityQuery.dataUpdatedAt, collectiblesQuery.data, queryClient, wallet.address]);
   const { settings: displaySettings, update: updateDisplaySettings } = useDisplaySettings(runtime);
   const currency = displaySettings?.currency;
   const headerStyle = displaySettings?.header ?? "full";
