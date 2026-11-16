@@ -47,8 +47,9 @@ to the wallet in the same way they do in Chrome.
 - **No remote code.** There is no over-the-air update plugin and no
   `server.url` in `capacitor.config.ts`, so code reaches users only
   through signed builds (`capacitor.config.mobile.test.ts`).
-- **Privacy.** The app is hidden in the app switcher, and screenshots are
-  blocked on Android.
+- **Privacy.** Screenshots are allowed. While the import-phrase screen is
+  open, Android blocks screenshots and blanks the recents card, and iOS
+  hides the app in the app switcher (`adapters/secure-screen.ts`).
 
 ## Location
 

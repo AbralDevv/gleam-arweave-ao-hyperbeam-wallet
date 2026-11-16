@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ClipboardEvent } from "react";
+import { usePlatform } from "../../../app-platform/context";
 import { ScreenHeader } from "@gleam/ui/src/primitives/screen-header.tsx";
 import { ScreenFooter } from "@gleam/ui/src/primitives/screen-footer.tsx";
 import { Button } from "@gleam/ui/src/primitives/button.tsx";
@@ -62,6 +63,11 @@ export function ImportPhrase({ onBack, onValidJWK, derive = defaultDerive }: Imp
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const abort = useRef<AbortController | null>(null);
   const pendingFocus = useRef<number | null>(null);
+
+  // The whole phrase is on screen here, and a screenshot of it is often
+  // synced to a photo backup. Screenshots are allowed everywhere else.
+  const { secureScreen } = usePlatform();
+  useEffect(() => secureScreen?.protect(), [secureScreen]);
 
   // Leaving the screen mid-derivation stops the worker.
   useEffect(() => () => abort.current?.abort(), []);

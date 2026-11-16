@@ -92,6 +92,7 @@ export function fakeAppPlatform(overrides: FakeAppPlatformOverrides = {}): AppPl
     ...(overrides.approvalSheet ? { approvalSheet: overrides.approvalSheet } : {}),
     ...(overrides.notices ? { notices: overrides.notices } : {}),
     ...(overrides.sidePanel ? { sidePanel: overrides.sidePanel } : {}),
+    ...(overrides.secureScreen ? { secureScreen: overrides.secureScreen } : {}),
   };
 }
 

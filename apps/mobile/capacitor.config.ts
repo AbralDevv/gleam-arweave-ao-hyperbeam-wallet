@@ -8,11 +8,11 @@ const config: CapacitorConfig = {
   appName: "Gleam",
   webDir: "dist",
   plugins: {
-    // Native config, read when the plugin loads, so the window is protected
-    // from the first frame with no JS involved. The plugin's own default is
-    // also true; it is spelled out so the test can pin it.
+    // Off from startup, so people can take screenshots. A screen that shows
+    // a secret turns it on while open (`adapters/secure-screen.ts`). The
+    // plugin's own default is true; it is spelled out so the test can pin it.
     PrivacyScreen: {
-      enable: true,
+      enable: false,
       // iOS-only. Its screenshot block re-parents the window layer, an
       // unofficial hack that risks WKWebView touch and keyboard behaviour.
       preventScreenshots: false,

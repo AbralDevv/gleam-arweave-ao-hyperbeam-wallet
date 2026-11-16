@@ -19,6 +19,19 @@ function setup(derive: DerivePhraseKey = vi.fn(async () => JWK)) {
 }
 
 describe("ImportPhrase", () => {
+  it("keeps the screen out of captures while it is open", () => {
+    const release = vi.fn();
+    const protect = vi.fn(() => release);
+    const { unmount } = renderWithPlatform(
+      <ImportPhrase onBack={vi.fn()} onValidJWK={vi.fn()} derive={vi.fn(async () => JWK)} />,
+      fakeAppPlatform({ secureScreen: { protect } }),
+    );
+    expect(protect).toHaveBeenCalledTimes(1);
+    expect(release).not.toHaveBeenCalled();
+    unmount();
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
   it("spreads a phrase pasted into any cell across the grid", () => {
     const { cell, paste } = setup();
     paste(4, `1. legal\n2. winner\n${PHRASE.split(" ").slice(2).join(", ")}`);

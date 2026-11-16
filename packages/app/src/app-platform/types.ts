@@ -225,6 +225,15 @@ export interface DappBrowserPort {
   subscribe(listener: (event: DappBrowserEvent) => void): () => void;
 }
 
+/**
+ * Keeps what's on screen out of screenshots and the app switcher while a
+ * screen shows a secret. `protect` returns its release; protection stays on
+ * until every holder has released it.
+ */
+export interface SecureScreenPort {
+  protect(): () => void;
+}
+
 export interface AppPlatform {
   /** The wire to the wallet's background. */
   runtime: RuntimePort;
@@ -256,4 +265,6 @@ export interface AppPlatform {
   notices?: NoticePort;
   /** Omitted where the host has no side panel. */
   sidePanel?: SidePanelPort;
+  /** Omitted where the host can't keep a screen out of captures. */
+  secureScreen?: SecureScreenPort;
 }

@@ -119,6 +119,7 @@
 /apps/mobile/src/adapters/runtime-port.ts                                  @skyf0xx
 /apps/mobile/src/adapters/lock-guard.ts                                    @skyf0xx
 /apps/mobile/src/adapters/app-away.ts                                      @skyf0xx
+/apps/mobile/src/adapters/secure-screen.ts                                 @skyf0xx
 /packages/runtime/src/storage-update.ts                                    @skyf0xx
 /packages/runtime/src/storage-keys.ts                                      @skyf0xx
 /packages/core/src/models/serialize.ts                                     @skyf0xx
