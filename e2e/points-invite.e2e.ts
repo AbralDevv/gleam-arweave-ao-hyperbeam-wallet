@@ -41,7 +41,7 @@ test.beforeAll(async () => {
   worker ??= await context.waitForEvent("serviceworker");
   const extensionId = new URL(worker.url()).host;
 
-  await context.route("https://cloud.umami.is/**", (route) => route.abort());
+  await context.route("https://gateway.umami.is/**", (route) => route.abort());
   await context.route("https://api.gleamwallet.app/invite/redeem", (route) =>
     route.fulfill({ json: { result: "ok", kind: "member" } }),
   );

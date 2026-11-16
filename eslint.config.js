@@ -336,6 +336,8 @@ export default tseslint.config(
       // Generated native projects; `cap sync` copies the built bundle into them.
       "apps/mobile/ios/**",
       "apps/mobile/android/**",
+      // Umami's minified tracker, copied as-is.
+      "apps/site/umami.js",
     ],
   },
   js.configs.recommended,
