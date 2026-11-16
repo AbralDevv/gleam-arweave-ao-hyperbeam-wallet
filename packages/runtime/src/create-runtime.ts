@@ -501,7 +501,7 @@ export function createRuntime(platform: Platform): Runtime {
     // Decoded only now: a page without a grant could otherwise keep the
     // worker busy decoding a large payload it is about to be refused.
     const params = parseParams(spec.params, decodeProviderParams(rawParams));
-    return handle(params, {
+    const result = await handle(params, {
       ...approvals,
       origin,
       grant,
@@ -512,6 +512,17 @@ export function createRuntime(platform: Platform): Runtime {
         return wallet.id;
       },
     });
+    // A read can wait seconds on the network. A site revoked meanwhile gets
+    // nothing; an approval's result is held back by `withheldIfLapsed`.
+    if (!spec.approval) await requireGrantStill(origin, method);
+    return result;
+  }
+
+  async function requireGrantStill(origin: string, method: ProviderMethod): Promise<void> {
+    const grant = await approval.findActiveGrant(origin);
+    if (!grant || missingPermissions(method, grant.permissions).length > 0) {
+      throw new Error(dappError(`"${origin}" is not connected. Call connect() first.`));
+    }
   }
 
   async function lockVault(): Promise<void> {
