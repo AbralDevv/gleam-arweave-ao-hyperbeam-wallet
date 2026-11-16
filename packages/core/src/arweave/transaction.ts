@@ -178,7 +178,24 @@ export async function signTransactionWithSigner(unsigned: ArweaveTransactionJson
 export async function postTransaction(gatewayUrl: string, signed: ArweaveTransactionJson): Promise<{ status: number; statusText: string }> {
   const client = clientForGateway(gatewayUrl);
   const response = await client.transactions.post(fromJson(signed));
-  return { status: response.status, statusText: response.statusText };
+  return { status: response.status, statusText: rejectionReason(response.statusText) };
+}
+
+/**
+ * arweave-js puts a rejection's parsed JSON body in `statusText` when it
+ * has no `error` field. arweave.net (HyperBEAM) answers with its whole
+ * response as JSON, the reason under `body`.
+ */
+function rejectionReason(statusText: unknown): string {
+  if (typeof statusText === "string") return statusText;
+  if (typeof statusText === "object" && statusText !== null) {
+    for (const field of ["error", "body"] as const) {
+      const value = (statusText as Record<string, unknown>)[field];
+      if (typeof value === "string" && value !== "") return value;
+    }
+    return JSON.stringify(statusText);
+  }
+  return String(statusText);
 }
 
 const BROADCAST_RETRY_DELAYS_MS = [1_000, 2_000];
