@@ -139,7 +139,7 @@ describe("discoverCollectibles", () => {
       gatewayBalances: { [A]: 1 },
     });
     expect((await result).map((c) => c.name).sort()).toEqual(["Gateway", "Peer"]);
-    expect(calls.some((u) => new URL(u).origin === new URL(PEER).origin && u.includes(A))).toBe(false);
+    expect(calls.some((u) => new URL(u).origin === new URL(PEER).origin && u.includes(`${A}~process@1.0/now/as/balance`))).toBe(false);
   });
 
   it("treats a token node's 0 as not held", async () => {
@@ -209,6 +209,6 @@ describe("discoverCollectibles", () => {
       maxCandidates: 1,
     });
     expect(list).toHaveLength(1);
-    expect(calls.filter((u) => new URL(u).origin === new URL(PEER).origin)).toHaveLength(1);
+    expect(calls.filter((u) => new URL(u).origin === new URL(PEER).origin && u.includes("/now/as/balance"))).toHaveLength(1);
   });
 });

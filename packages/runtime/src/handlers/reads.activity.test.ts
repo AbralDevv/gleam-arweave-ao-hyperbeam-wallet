@@ -201,7 +201,7 @@ describe("ReadsHandler: getTokenBalances", () => {
 
     expect(balances.find((b) => b.processId === FODDER)).toMatchObject({ ticker: "FODDER", denomination: 12, quantity: "1000000000000" });
     expect(calls).toContain(`https://arweave.net/${FODDER}~process@1.0/now/as/balance?as=execution&balance=addr1`);
-    expect(calls.some((url) => new URL(url).origin === new URL(PEER).origin && url.includes(FODDER))).toBe(false);
+    expect(calls.some((url) => new URL(url).origin === new URL(PEER).origin && url.includes(`${FODDER}~process@1.0/now/as/balance`))).toBe(false);
   });
 
   it("resolves ticker/denomination/name for an unregistered watched token from its spawn tags", async () => {

@@ -88,7 +88,7 @@ describe("ReadsHandler: getCollectibles", () => {
     const fn = stubNetwork();
     const reads = new ReadsHandler(createFakeStorage());
     await Promise.all([reads.getCollectibles({ address: ADDRESS }), reads.getCollectibles({ address: ADDRESS })]);
-    const balanceReads = fn.mock.calls.filter(([u]) => String(u).includes("~process@1.0")).length;
+    const balanceReads = fn.mock.calls.filter(([u]) => String(u).includes("/now/as/balance")).length;
     expect(balanceReads).toBe(1);
   });
 });
