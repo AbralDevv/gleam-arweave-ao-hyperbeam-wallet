@@ -33,6 +33,11 @@ export function DataItemCard({ index, item }: { index: number; item: OtherItem }
             <UntrustedText text={item.decodedData} />
           </div>
         </div>
+      ) : item.decodedData === null && (item.dataSize ?? 0) > 0 ? (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-caption font-semibold uppercase tracking-wide text-muted">{t("approval.data")}</span>
+          <span className="font-mono text-caption text-foreground">{t("approval.bytes", { size: String(item.dataSize) })}</span>
+        </div>
       ) : null}
 
       {item.tags.length > 0 ? (

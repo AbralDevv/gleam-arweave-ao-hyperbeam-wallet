@@ -826,6 +826,7 @@ async function buildDataItemPreviews(
           : null;
       return {
         decodedData: decodeDataPreview(bytes),
+        dataSize: bytes.byteLength,
         tags,
         target: item.target ?? null,
         payloadHash: await sha256Hex(bytes),
@@ -866,6 +867,7 @@ async function buildSigningPreview(input: SigningRequestInput): Promise<SigningA
     ...(input.collectible ? { collectible: input.collectible } : {}),
     ...(input.unreadableTokenTransfer ? { unreadableTokenTransfer: true } : {}),
     decodedData: decodeDataPreview(input.payload),
+    dataSize: input.payload.byteLength,
     tags: input.tags ?? [],
     payloadHash,
     items: signedItems ? await buildDataItemPreviews(signedItems, input.itemTokenMetadata) : null,

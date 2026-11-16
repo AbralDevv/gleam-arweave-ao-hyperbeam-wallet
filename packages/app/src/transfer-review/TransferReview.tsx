@@ -517,6 +517,11 @@ function TransferDetails({ transfer, part, showTags }: { transfer: TransferLine;
             <UntrustedText text={part.decodedData} />
           </div>
         </div>
+      ) : part.decodedData === null && (part.dataSize ?? 0) > 0 ? (
+        <div className="flex flex-col gap-1">
+          <span className="text-label text-muted">{t("approval.data")}</span>
+          <span className="font-mono text-caption text-foreground">{t("approval.bytes", { size: String(part.dataSize) })}</span>
+        </div>
       ) : null}
       {part.payloadHash !== null ? <PayloadHash value={part.payloadHash} /> : null}
     </>

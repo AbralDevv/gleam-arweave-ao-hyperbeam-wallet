@@ -463,6 +463,12 @@ describe("SigningApprovalScreen: requests that move nothing", () => {
     expect(screen.queryByText("Network fee")).toBeNull();
   });
 
+  it("gives the size of data it can't show as text", () => {
+    renderScreen({ preview: { ...MESSAGE_PREVIEW, decodedData: null, dataSize: 1048576 } });
+    expect(screen.getByText("Data")).toBeTruthy();
+    expect(screen.getByText("1048576 bytes")).toBeTruthy();
+  });
+
   it("lists every item of a batch with no transfer in it", () => {
     const preview: SigningApprovalPreview = {
       ...MESSAGE_PREVIEW,
