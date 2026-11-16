@@ -48,7 +48,6 @@ import {
 } from "@gleam/core/signer";
 import { isSessionExpired, isValidSession, SESSION_KEY, type KeySession } from "./key-session";
 import { userErrorMessage } from "@gleam/core/src/models/user-errors.ts";
-import { updateStored } from "../storage-update";
 import { ACTIVE_WALLET_ID_KEY, ACTIVITY_LOG_KEY_PREFIX, BACKUP_KEY, BACKUP_STATE_KEY, WALLETS_KEY, WATCHED_PROCESS_IDS_KEY_PREFIX } from "../storage-keys";
 import { dappError } from "../dapp-error";
 
@@ -1075,20 +1074,6 @@ export class WalletLifecycleHandler {
    */
   async getLockSettings(): Promise<LockSettings> {
     return loadLockSettings(this.storage);
-  }
-
-  /**
-   * Run on an extension update. Vaults from before the 1-hour default ran
-   * with "never" without anyone choosing it, so they keep it rather than
-   * starting to lock after the update. Only new installs get the default.
-   */
-  async keepLockTimeoutOnUpdate(): Promise<void> {
-    return this.keySession.withSessionLock(async () => {
-      if ((await loadWallets(this.storage)).length === 0) return;
-      await updateStored(this.storage, LOCK_SETTINGS_KEY, (current) =>
-        current === null ? ({ autoLockTimeout: "never" } satisfies LockSettings) : undefined,
-      );
-    });
   }
 
   /**

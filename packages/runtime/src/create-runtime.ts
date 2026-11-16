@@ -837,13 +837,10 @@ export function createRuntime(platform: Platform): Runtime {
     onIdleStateChanged(state) {
       lockOnScreenLock(state).catch((error: unknown) => console.error("Couldn't lock on screen lock.", error));
     },
-    onInstalled(reason) {
+    onInstalled() {
       // Only an install finds `local:networkSettings` empty; after that a
       // written NetworkSettings (default or user-edited) short-circuits it.
       void initializeNetworkSettingsIfMissing();
-      if (reason === "update") {
-        lifecycle.keepLockTimeoutOnUpdate().catch((error: unknown) => console.error("Couldn't keep the lock timeout.", error));
-      }
     },
   };
 }
