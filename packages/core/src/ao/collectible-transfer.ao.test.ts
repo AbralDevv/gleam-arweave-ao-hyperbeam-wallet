@@ -19,10 +19,11 @@ const decoder = new TextDecoder();
 
 afterEach(() => vi.restoreAllMocks());
 
-function stubGateway() {
+function stubGateway(assetBalance = "82") {
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = String(input instanceof Request ? input.url : input);
     if (url.includes("tx_anchor")) return new Response("b".repeat(64), { status: 200 });
+    if (url.endsWith(`/wallet/${ASSET}/balance`)) return new Response(assetBalance, { status: 200 });
     return new Response("OK", { status: 200 });
   });
 }
@@ -45,6 +46,16 @@ describe("prepareCollectibleTransfer", () => {
       { name: "quantity", value: "1" },
     ]);
     expect(fetchSpy.mock.calls.some(([input]) => String(input).includes("/price/"))).toBe(false);
+  });
+
+  it("takes the activation winston out of the fee for an asset that holds no AR", async () => {
+    stubGateway("0");
+
+    const tx = await prepareCollectibleTransfer(GATEWAY, jwk.n, ASSET, RECIPIENT, "654321");
+
+    expect(tx.quantity).toBe("1");
+    expect(tx.reward).toBe("654320");
+    expect(readCollectibleTransfer({ ...tx, tags: collectibleTransferTags(RECIPIENT) })).toEqual({ assetId: ASSET, recipient: RECIPIENT });
   });
 
   it("signs and posts the exact transaction it built", async () => {

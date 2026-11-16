@@ -14,7 +14,7 @@ import {
   WATCH_ONLY_CONNECT_REFUSAL,
 } from "@gleam/core";
 import { resolveInitialGatewayUrl } from "@gleam/core/src/arweave/first-run-gateway.ts";
-import { estimateFee } from "@gleam/core/src/arweave/transfer.ts";
+import { estimateL1TransferFee } from "@gleam/core/src/ao/l1-transfer.ts";
 import { isSecureSigningOrigin } from "@gleam/core/src/policy/index.ts";
 import type { ProtocolMap } from "@gleam/messaging/src/protocol.ts";
 import type { CallerContext } from "@gleam/messaging/src/caller.ts";
@@ -423,7 +423,7 @@ export function createRuntime(platform: Platform): Runtime {
     const lookup = (async () => {
       if ((await reads.tokenTransport({ processId })) !== "l1") return null;
       const { gatewayUrl } = await reads.getNetworkSettings();
-      return (await estimateFee(gatewayUrl, processId)).fee;
+      return estimateL1TransferFee(gatewayUrl, processId);
     })().catch(() => null);
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), TOKEN_FEE_QUOTE_TIMEOUT_MS));
     return Promise.race([lookup, timeout]);

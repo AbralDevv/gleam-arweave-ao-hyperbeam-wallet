@@ -3,7 +3,7 @@ import { l1TransferTags, readL1TokenTransfer } from "./l1-transfer";
 
 const PID = "EuEkh8ZYkoPKXimgjre7W268XXX_qRn5vofc66oRTOw";
 const RECIPIENT = "R".repeat(43);
-const TRANSFER = { kind: "transfer", processId: PID, recipient: RECIPIENT, quantity: "311" };
+const TRANSFER = { kind: "transfer", processId: PID, recipient: RECIPIENT, quantity: "311", value: "0" };
 const UNREADABLE = { kind: "unreadable" };
 
 function read(tags: Array<{ name: string; value: string }>, fields: { quantity?: string; data_size?: string } = {}) {
@@ -28,12 +28,16 @@ describe("readL1TokenTransfer", () => {
     ).toEqual(TRANSFER);
   });
 
+  it("reads the activation winston a process with no AR needs as the transfer's value", () => {
+    expect(read(l1TransferTags(RECIPIENT, "311"), { quantity: "1" })).toEqual({ ...TRANSFER, value: "1" });
+  });
+
   it("flags a transfer-looking transaction it can't read cleanly", () => {
     const tags = l1TransferTags(RECIPIENT, "5");
     expect(read([...tags, { name: "Quantity", value: "999" }])).toEqual(UNREADABLE);
     expect(read([...tags, { name: "Action", value: "Transfer" }])).toEqual(UNREADABLE);
     expect(read([...tags, { name: "action", value: "Other" }])).toEqual(UNREADABLE);
-    expect(read(tags, { quantity: "1" })).toEqual(UNREADABLE);
+    expect(read(tags, { quantity: "2" })).toEqual(UNREADABLE);
     expect(read(tags, { data_size: "4" })).toEqual(UNREADABLE);
     // A dispatch this large is bundled into a data item, which an AO token reads as its Transfer.
     const aoTags = [

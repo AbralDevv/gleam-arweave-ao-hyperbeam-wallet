@@ -7,7 +7,7 @@ import {
   type UnsignedPayload,
 } from "@gleam/core";
 import { collectibleTransferTags, readCollectibleTransfer, COLLECTIBLE_TRANSFER_QUANTITY } from "@gleam/core/src/ao/collectible-transfer.ts";
-import { l1TransferTags, readL1TokenTransfer } from "@gleam/core/src/ao/l1-transfer.ts";
+import { L1_ACTIVATION_WINSTON, l1TransferTags, readL1TokenTransfer } from "@gleam/core/src/ao/l1-transfer.ts";
 import { readAoTransferMessage } from "@gleam/core/src/ao/transfer-message.ts";
 import { userErrorMessage } from "@gleam/core/src/models/user-errors.ts";
 import { dappError } from "../dapp-error";
@@ -58,9 +58,12 @@ export function summarize(payload: UnsignedPayload, collectibleId?: string | nul
   if (payload.kind === "transaction") {
     const { target, quantity, reward, data_size } = payload.transaction;
     const tags = payload.transaction.tags.map(decodeTransactionTag);
+    // The activation winston a token transfer may carry counts in its fee,
+    // as the review showed it (`estimateL1TransferFee`).
+    const withValue = (value: string) => (BigInt(reward) + BigInt(value)).toString();
     const collectible = readCollectibleTransfer({ target, quantity, data_size, tags });
     if (collectible && collectible.assetId === collectibleId) {
-      return { kind: "collectibleTransfer", asset: collectible.assetId, recipient: collectible.recipient, fee: reward };
+      return { kind: "collectibleTransfer", asset: collectible.assetId, recipient: collectible.recipient, fee: withValue(quantity || "0") };
     }
     const tokenTransfer = readL1TokenTransfer({ target, quantity, data_size, tags });
     if (tokenTransfer?.kind === "transfer") {
@@ -69,7 +72,7 @@ export function summarize(payload: UnsignedPayload, collectibleId?: string | nul
         process: tokenTransfer.processId,
         recipient: tokenTransfer.recipient,
         quantity: tokenTransfer.quantity,
-        fee: reward,
+        fee: withValue(tokenTransfer.value),
       };
     }
     return {
@@ -165,15 +168,27 @@ export interface ApprovedTransfer {
   collectible?: Pick<CollectibleRef, "id"> | null;
 }
 
+/**
+ * The reward and value an L1 token transfer must carry to cost exactly the
+ * approved fee: a value of 0, or `L1_ACTIVATION_WINSTON` taken out of the
+ * fee for a process with no AR. Any other value fails as the amount.
+ */
+function l1FeeSplit(payload: UnsignedPayload | undefined, fee: string): { quantity: string; reward: string } {
+  const value = normalizedQuantity(transactionOf(payload).transaction.quantity);
+  if (value !== "0" && value !== L1_ACTIVATION_WINSTON) mismatch("amount");
+  const reward = BigInt(fee) - BigInt(value);
+  if (reward < 0n) mismatch("fee");
+  return { quantity: value, reward: reward.toString() };
+}
+
 /** Throws `approvalMismatch` unless `payload` is exactly the send in `approved`. */
 export function assertTransferMatches(approved: ApprovedTransfer, payload: UnsignedPayload | undefined): void {
   if (approved.collectible) {
     checkTransaction(payload, {
       target: approved.collectible.id,
-      quantity: "0",
       tags: collectibleTransferTags(approved.recipient),
       data: new Uint8Array(),
-      reward: approved.fee,
+      ...l1FeeSplit(payload, approved.fee),
     });
     return;
   }
@@ -191,10 +206,9 @@ export function assertTransferMatches(approved: ApprovedTransfer, payload: Unsig
     // An arweave-scheduler token takes its transfer as an L1 transaction.
     checkTransaction(payload, {
       target: approved.token,
-      quantity: "0",
       tags: l1TransferTags(approved.recipient, approved.amount),
       data: new Uint8Array(),
-      reward: approved.fee,
+      ...l1FeeSplit(payload, approved.fee),
     });
     return;
   }

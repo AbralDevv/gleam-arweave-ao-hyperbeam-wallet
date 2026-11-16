@@ -732,6 +732,23 @@ describe("Transfers from a hardware wallet sign in the approval window", () => {
     ]);
   });
 
+  it("a device collectible send to an asset with no AR carries the activation winston inside the approved fee", async () => {
+    mockNetwork();
+    const network = globalThis.fetch;
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith(`/wallet/${PROCESS_ID}/balance`)) return new Response("0");
+      return url.endsWith("/balance") ? new Response("1000000") : network(input, init);
+    }) as unknown as typeof fetch;
+    const collectible = { id: PROCESS_ID, name: "Beam #1" };
+    const { device } = await approveOnDevice(() =>
+      transfer.sendCollectible({ walletId: HW_ID, recipient: RECIPIENT, collectible, fee: "1000" }),
+    );
+
+    expect(device.payloads[0]).toMatchObject({ kind: "transaction", transaction: { target: PROCESS_ID, quantity: "1", reward: "999" } });
+    expect(device.summaries[0]).toEqual({ kind: "collectibleTransfer", asset: PROCESS_ID, recipient: RECIPIENT, fee: "1000" });
+  });
+
   it("a popup AO send posts the device-signed Transfer to the MU and logs it", async () => {
     const calls = mockNetwork();
     const { pending, requestId, device } = await approveOnDevice(() =>
