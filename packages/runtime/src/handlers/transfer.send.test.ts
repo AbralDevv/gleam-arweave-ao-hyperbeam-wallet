@@ -256,6 +256,32 @@ describe("TransferHandler: submitTransfer", () => {
     expect(entry?.token).toBe(AO_PROCESS_ID);
   });
 
+  it("returns an accepted send's id when the activity log can't be written", async () => {
+    await storage.set("local:networkSettings", {
+      gatewayUrl: "https://arweave.net",
+      peers: [],
+      activePeerUrl: "https://hyperbeam.example.com",
+    });
+    aoFinishMock.mockResolvedValue({ messageId: "ao-msg-id-2" });
+    const set = storage.set.bind(storage);
+    storage.set = async (key, value) => {
+      if (key.startsWith("local:activityLog:")) throw new Error("QUOTA_BYTES quota exceeded");
+      return set(key, value);
+    };
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const handler = new TransferHandler(storage, keySession);
+    const result = await handler.submitTransfer({
+      walletId: WALLET_ID,
+      recipient: AO_RECIPIENT,
+      token: AO_PROCESS_ID,
+      amount: "42",
+      fee: null,
+    });
+
+    expect(result.txId).toBe("ao-msg-id-2");
+  });
+
   it("hands a Ledger AO send to the approval window, where the device signs it", async () => {
     keySessionStore.set("local:wallets", [{ ...wallet, method: "ledger", encryptedKeyfile: null }]);
     const requestTransfer = vi.fn().mockResolvedValue({ txId: "ao-msg-id-ledger" });
