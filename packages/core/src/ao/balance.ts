@@ -216,12 +216,16 @@ export async function readL1Balance(
   throw balanceReadError(label, failures);
 }
 
-const SLOT_TIMEOUT_MS = 5_000;
+/**
+ * Every read waits on the slowest host's slot, so a host that hangs is
+ * cut off here rather than at the balance read's own timeout.
+ */
+const SLOT_TIMEOUT_MS = 1_500;
 
 /**
  * `hosts` ordered by the slot each has reached for `processId`, highest
- * first. A host that gives no slot keeps its place after those that do,
- * so with no slots at all the order is unchanged.
+ * first. A host that gives no slot in time keeps its place after those
+ * that do, so with no slots at all the order is unchanged.
  */
 async function furthestAheadFirst(processId: string, hosts: string[], fetchImpl: typeof fetch): Promise<string[]> {
   const slots = await Promise.all(

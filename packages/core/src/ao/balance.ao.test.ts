@@ -137,6 +137,19 @@ describe("readTokenBalance", () => {
     expect(calls.filter((url) => url.includes("/now/as/balance"))).toEqual([`${NEO}/${PID}~process@1.0/now/as/balance?as=execution&balance=${ADDRESS}`]);
   });
 
+  it("stops waiting for a host that hangs on its slot", async () => {
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith(NEO) && url.endsWith("/slot/current")) {
+        return new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError"))));
+      }
+      return new Response(url.endsWith("/slot/current") ? "3" : "42");
+    }) as typeof fetch;
+    const started = Date.now();
+    await expect(readTokenBalance({ ...l1, fetchImpl })).resolves.toBe("42");
+    expect(Date.now() - started).toBeLessThan(3_000);
+  });
+
   it("keeps a balance past Number.MAX_SAFE_INTEGER exact", async () => {
     const { fetchImpl } = routed({ [GATEWAY]: () => new Response("20999629495219345476") });
     await expect(readTokenBalance({ ...l1, fetchImpl })).resolves.toBe("20999629495219345476");
