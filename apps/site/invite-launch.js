@@ -261,11 +261,14 @@
     var ease = "cubic-bezier(.6, 0, .9, .4)";
     var away = "cubic-bezier(.7, 0, 1, .5)";
 
-    // A rising run of glass pings across the launch: a sparkle, not a hit
+    // A rising run of glass pings across the launch: a sparkle, not a hit.
+    // Raised past the page's quiet note level, as the gate's tap is.
     program.enableSound(function () {
-      [2, 4, 7, 9, 12, 14].forEach(function (step, i) {
-        program.ping(step, i * 0.11);
-      });
+      program.loud(function () {
+        [2, 4, 7, 9, 12, 14].forEach(function (step, i) {
+          program.ping(step, i * 0.11);
+        });
+      }, 0.5);
     });
 
     // A breath in
