@@ -19,9 +19,10 @@ export const SEATS_PER_CONVERSION = 2;
  * let-in install registers a wallet it gives back SEATS_PER_CONVERSION,
  * so seats pile up with members whose invites turn into members and run
  * out for the rest. If that install later leaves, its device and
- * redemption are deleted and its extra seat goes with them.
+ * redemption are deleted and its extra seat goes with them. `bonus_seats`
+ * holds seats the team granted on top.
  */
-export const MEMBER_SEAT_BALANCE_SQL = `(${MEMBER_CODE_SEATS} + (SELECT coalesce(sum(
+export const MEMBER_SEAT_BALANCE_SQL = `(${MEMBER_CODE_SEATS} + w.bonus_seats + (SELECT coalesce(sum(
      CASE WHEN EXISTS (SELECT 1 FROM wallet_devices x WHERE x.device_id = ir.device_id) THEN ${SEATS_PER_CONVERSION - 1} ELSE -1 END
    ), 0) FROM invite_redemptions ir WHERE ir.code = w.invite_code))`;
 
