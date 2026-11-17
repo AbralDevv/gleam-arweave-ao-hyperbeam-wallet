@@ -160,9 +160,109 @@ html:not(.js) .ticket { display: none; }
 .i .invite-facts { margin-top: 0; max-width: none; }
 .i .invite-facts li { padding: clamp(22px, 4vh, 36px) 0; border-color: #DCDCDC; font-size: clamp(1.125rem, 2.2vw, 1.625rem); line-height: 1.3; letter-spacing: -0.015em; }
 .i .invite-facts strong { display: block; margin-bottom: 8px; font-size: clamp(2rem, 6vw, 3.75rem); line-height: 1; letter-spacing: -0.045em; }
-.i .links { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 40px; font-size: .9375rem; }
-.i .links a { text-underline-offset: 3px; }
+.i .invite-facts li:last-child { border-bottom: 0; }
+
+/* The close: the beam runs in from off the left edge and points at GLEAM.
+   The word is the link to gleam.html, and tapping it launches the beam off
+   the right edge so gleam.html can open on it arriving from the left. */
+
+.i-cut { background: linear-gradient(var(--paper) calc(100% - 3px), var(--ink) calc(100% - 3px)); }
+
+.i-launch { position: relative; overflow: hidden; padding: clamp(72px, 11vw, 150px) 0 clamp(88px, 13vw, 170px); }
+.i-launch-sparks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+html:not(.motion) .i-launch-sparks { display: none; }
+
+.i-launch-link { display: flex; align-items: center; color: inherit; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.i-launch-link:focus-visible { outline: none; }
+.i-launch-link:focus-visible .i-launch-word { outline: 2px solid var(--beam-sky); outline-offset: 10px; border-radius: 8px; }
+
+.i-launch-beam,
+.i-launch-streak { display: flex; flex-direction: column; height: 10px; }
+.i-launch-beam { position: relative; flex: 1; min-width: 40px; margin-left: calc(50% - 50vw); }
+.i-launch-beam span,
+.i-launch-streak span { flex: 1; }
+.i-launch-beam span:nth-child(1), .i-launch-streak span:nth-child(1) { background: var(--beam-red); }
+.i-launch-beam span:nth-child(2), .i-launch-streak span:nth-child(2) { background: var(--beam-purple); }
+.i-launch-beam span:nth-child(3), .i-launch-streak span:nth-child(3) { background: var(--beam-sky); }
+.i-launch-beam span:nth-child(4), .i-launch-streak span:nth-child(4) { background: var(--beam-yellow); }
+.i-launch-beam span:nth-child(5), .i-launch-streak span:nth-child(5) { background: var(--beam-green); }
+
+/* A point riding the beam into the word: gleam.html's gate pulse */
+.i-launch-beam i {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 160px;
+  height: 4px;
+  margin: -2px 0 0 -160px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #fff);
+  box-shadow: 0 0 14px 2px rgba(255, 255, 255, .5);
+  opacity: 0;
+}
+
+.i-launch-tip { flex: none; width: 26px; height: 34px; margin-left: -23px; }
+.i-launch-tip svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+.i-launch-word {
+  display: block;
+  margin-left: clamp(10px, 1.5vw, 22px);
+  padding: .05em .08em .05em .02em;
+  font-size: clamp(76px, 21vw, 280px);
+  font-weight: 900;
+  line-height: .8;
+  letter-spacing: -0.065em;
+  background: linear-gradient(100deg,
+      var(--on-ink) 38%,
+      color-mix(in oklab, var(--beam-purple) 18%, var(--on-ink)) 44%,
+      #fff 48%, #fff 52%,
+      color-mix(in oklab, var(--beam-sky) 20%, var(--on-ink)) 56%,
+      var(--on-ink) 62%) 100% 0 / 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+html:not(.js) .i-launch-word { background: none; color: var(--on-ink); }
+.i-launch-word i { font-style: normal; }
+.i-launch-word.glint { animation: il-glint 1.3s ease-in-out; }
+@keyframes il-glint { from { background-position: 100% 0; } to { background-position: 0 0; } }
+
+/* A shard landing lights its letter in the shard's colour for a moment */
+.i-launch-word i.hit { animation: il-hit 1.1s ease-out; }
+@keyframes il-hit {
+  0% { color: color-mix(in oklab, var(--c) 22%, transparent); }
+  100% { color: transparent; }
+}
+
+/* Wind-up: the word strains against the pad */
+.i-launch-link.armed .i-launch-word { animation: il-strain .1s linear infinite; }
+.i-launch-link.armed .i-launch-word.glint { animation: il-glint .9s ease-in-out, il-strain .1s linear infinite; }
+.i-launch-link.armed .i-launch-beam,
+.i-launch-link.armed .i-launch-tip { filter: drop-shadow(0 0 8px rgba(115, 201, 232, .7)); }
+@keyframes il-strain {
+  0%, 100% { translate: 0 0; }
+  25% { translate: 1px -1px; }
+  50% { translate: -1px 0; }
+  75% { translate: 1px 1px; }
+}
+
+.i-launch-streak {
+  position: absolute;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 0 14px rgba(255, 255, 255, .5));
+}
+.i-launch-black { position: fixed; inset: 0; z-index: 50; background: var(--ink); opacity: 0; pointer-events: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .ticket-code span.lock, .ticket-seats i.open, .ticket.stamped .ticket-stamp, .ticket.burst::after { animation: none; }
+  .i-launch-word, .i-launch-word i.hit, .i-launch-link.armed .i-launch-word { animation: none; }
+}
+
+/* Leaving for gleam.html: the browser holds this page until that one paints,
+   so the black after the launch runs straight into the gate */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
 }

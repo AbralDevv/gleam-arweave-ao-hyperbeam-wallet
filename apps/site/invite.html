@@ -41,6 +41,7 @@
   <script defer src="pages.js"></script>
   <script defer src="program.js"></script>
   <script defer src="invite.js"></script>
+  <script defer src="invite-launch.js"></script>
 </head>
 
 <body class="program invite-page" data-invite>
@@ -147,15 +148,45 @@
             friends you bring in.</li>
         </ul>
 
-        <div class="links">
-          <a href="gleam.html">Gleam Points</a>
-          <a href="points.html">How points work</a>
-          <a href="./">About Gleam</a>
-          <a href="privacy.html">Privacy</a>
-          <a href="terms.html">Terms</a>
-        </div>
       </div>
     </section>
+    <div class="cut i-cut" aria-hidden="true">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+        <polygon points="0,100 100,0 100,100" fill="#0A0A0A" />
+        <line x1="0" y1="108" x2="100" y2="8" stroke="#FF1717" />
+        <line x1="0" y1="104" x2="100" y2="4" stroke="#8B12FF" />
+        <line x1="0" y1="100" x2="100" y2="0" stroke="#73C9E8" />
+        <line x1="0" y1="96" x2="100" y2="-4" stroke="#FFE45C" />
+        <line x1="0" y1="92" x2="100" y2="-8" stroke="#28F02D" />
+      </svg>
+    </div>
+    <section class="ink i-launch" data-launch-pad>
+      <canvas class="i-launch-sparks" aria-hidden="true"></canvas>
+      <div class="wrap">
+        <a class="i-launch-link" href="gleam.html" aria-label="What is GLEAM?" data-launch
+          data-umami-event="invite-gleam-launch">
+          <span class="i-launch-beam" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><i></i></span>
+          <span class="i-launch-tip" aria-hidden="true">
+            <svg viewBox="0 0 26 34">
+              <defs>
+                <linearGradient id="i-launch-tip" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#FF1717" />
+                  <stop offset=".25" stop-color="#8B12FF" />
+                  <stop offset=".5" stop-color="#73C9E8" />
+                  <stop offset=".75" stop-color="#FFE45C" />
+                  <stop offset="1" stop-color="#28F02D" />
+                </linearGradient>
+              </defs>
+              <path d="M8 3 L23 17 L8 31" fill="none" stroke="url(#i-launch-tip)" stroke-width="4"
+                stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="i-launch-word" aria-hidden="true"><i>G</i><i>L</i><i>E</i><i>A</i><i>M</i></span>
+        </a>
+      </div>
+      <div class="i-launch-streak" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+    </section>
+    <div class="i-launch-black" aria-hidden="true"></div>
   </main>
 
   <footer class="site-footer">
