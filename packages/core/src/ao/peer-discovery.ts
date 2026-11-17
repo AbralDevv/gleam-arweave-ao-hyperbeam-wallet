@@ -106,6 +106,44 @@ function withTimeout(signal: AbortSignal | undefined, timeoutMs: number): AbortS
   return signal ? AbortSignal.any([signal, timeout]) : timeout;
 }
 
+// Probe answers are short — an Arweave address, or a slot number — so a
+// probe response never needs more than this. A peer that serves more is
+// not a usable probe answer, and reading it all would let any probed peer
+// allocate unbounded memory in the worker.
+const PROBE_RESPONSE_MAX_BYTES = 4096;
+
+/**
+ * The response body as text, or null when it runs past
+ * `PROBE_RESPONSE_MAX_BYTES`. Reads the stream in chunks and cancels it as
+ * soon as the cap is passed, so an oversized body is never buffered; a
+ * `Content-Length` over the cap is refused without reading at all.
+ */
+async function readCappedText(response: Response): Promise<string | null> {
+  const declared = response.headers.get("content-length");
+  if (declared !== null && Number(declared) > PROBE_RESPONSE_MAX_BYTES) return null;
+  const body = response.body;
+  if (body === null) return "";
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > PROBE_RESPONSE_MAX_BYTES) {
+        await reader.cancel().catch(() => {});
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const decoder = new TextDecoder();
+  return chunks.map((chunk) => decoder.decode(chunk, { stream: true })).join("") + decoder.decode();
+}
+
 async function readLocationRecords(
   gatewayUrl: string,
   tags: (typeof LOCATION_TAG_FILTERS)[number],
@@ -148,7 +186,8 @@ async function answersAsNode(
       signal: withTimeout(signal, timeoutMs),
     });
     if (response.status !== 200) return false;
-    return (await response.text()).trim().length > 0;
+    const text = await readCappedText(response);
+    return text !== null && text.trim().length > 0;
   } catch {
     return false;
   }
@@ -242,7 +281,8 @@ export async function findL1TokenNodes({
         const response = await fetchImpl(`${urls[index]}/${L1_CANARY_PROCESS_ID}~process@1.0/slot/current`, {
           signal: withTimeout(signal, timeoutMs),
         });
-        serves[index] = response.ok && /^\d+$/.test((await response.text()).trim());
+        const text = response.ok ? await readCappedText(response) : null;
+        serves[index] = text !== null && /^\d+$/.test(text.trim());
       } catch {
         serves[index] = false;
       }
