@@ -230,6 +230,18 @@
       openApp.href = "https://open.gleamwallet.app/invite?code=" + encodeURIComponent(inviteCode);
       document.querySelector("[data-open-app-wrap]").hidden = false;
     }
+    // The extension's store page is no use on a phone: send Accept to the
+    // app's install page instead. The ticket keeps the code to copy.
+    var accept = document.querySelector("[data-accept-invite]");
+    var phone = /Android/i.test(navigator.userAgent)
+      ? "android"
+      : /iPhone|iPad|iPod/i.test(navigator.userAgent)
+        ? "ios"
+        : "";
+    if (accept && phone) {
+      accept.href = phone + ".html";
+      accept.setAttribute("data-umami-event", "invite-accept-" + phone);
+    }
     var states = {};
     document.querySelectorAll("[data-state]").forEach(function (el) {
       states[el.getAttribute("data-state")] = el;
