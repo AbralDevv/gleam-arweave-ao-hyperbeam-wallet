@@ -28,6 +28,9 @@
 .i-hero .invite-sub { margin-top: 36px; font-size: clamp(1.5rem, 3vw, 2rem); letter-spacing: -0.03em; }
 .i-hero .small strong { color: var(--on-ink); font-family: var(--mono); letter-spacing: .04em; }
 .i-notfound { color: var(--beam-red) !important; font-weight: 600; }
+/* pages.js still fills these for the ticket to read (the code, the seats),
+   but the ticket shows both, so the page doesn't repeat them */
+.i-hero [data-invite-code], .i-hero [data-seats] { display: none !important; }
 
 .i-hero .invite-meta { margin: 0; padding-bottom: clamp(40px, 8vh, 80px); }
 .i-hero .vision-count { border-color: var(--ink-line); background: var(--ink-2); color: var(--on-ink-muted); }
