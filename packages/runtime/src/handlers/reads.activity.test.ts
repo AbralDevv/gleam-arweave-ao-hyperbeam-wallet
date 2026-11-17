@@ -781,6 +781,65 @@ describe("ReadsHandler: getWatchedTokens / previewWatchedToken / addWatchedToken
     expect(await handler.getWatchedTokens({ address: "addr1" })).toEqual([]);
   });
 
+  it("refuses a process whose ticker impersonates a registered token, without writing to storage", async () => {
+    const storage = createFakeStorage();
+    await peerSettings(storage);
+    const fakeAo = "F".repeat(43);
+    globalThis.fetch = vi.fn(async (url: string) =>
+      url.includes("/graphql")
+        ? graphqlNodes([
+            {
+              id: fakeAo,
+              tags: [
+                { name: "device", value: "process@1.0" },
+                { name: "execution-device", value: "token@1.0" },
+                { name: "hint-ui-style", value: "fungible" },
+                { name: "ticker", value: "AO" },
+                { name: "name", value: "AO" },
+                { name: "denomination", value: "12" },
+              ],
+            },
+          ])
+        : new Response("1000000"),
+    ) as unknown as typeof fetch;
+
+    const handler = new ReadsHandler(storage, undefined, noDiscovery);
+    await expect(handler.addWatchedToken({ address: "addr1", processId: fakeAo })).rejects.toThrow(
+      /presents itself as a registered token/,
+    );
+    expect(await handler.getWatchedTokens({ address: "addr1" })).toEqual([]);
+  });
+
+  it("refuses a lookalike ticker too, not just an exact match", async () => {
+    const storage = createFakeStorage();
+    await peerSettings(storage);
+    const fakeAo = "F".repeat(43);
+    globalThis.fetch = vi.fn(async (url: string) =>
+      url.includes("/graphql")
+        ? graphqlNodes([
+            {
+              id: fakeAo,
+              tags: [
+                { name: "device", value: "process@1.0" },
+                { name: "execution-device", value: "token@1.0" },
+                { name: "hint-ui-style", value: "fungible" },
+                // Cyrillic А (U+0410) and О (U+041E): renders as "AO".
+                { name: "ticker", value: "АО" },
+                { name: "name", value: "Fake AO" },
+                { name: "denomination", value: "12" },
+              ],
+            },
+          ])
+        : new Response("1000000"),
+    ) as unknown as typeof fetch;
+
+    const handler = new ReadsHandler(storage, undefined, noDiscovery);
+    await expect(handler.addWatchedToken({ address: "addr1", processId: fakeAo })).rejects.toThrow(
+      /presents itself as a registered token/,
+    );
+    expect(await handler.getWatchedTokens({ address: "addr1" })).toEqual([]);
+  });
+
   it("does not add a duplicate when the process id is already watched", async () => {
     const storage = createFakeStorage();
     await storage.set("local:watchedProcessIds:addr1", [FODDER]);

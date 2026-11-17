@@ -102,6 +102,8 @@ export const USER_ERRORS = {
   notTokenSend: "Not a token send.",
   notCollectibleSend: "Not a collectible send.",
   tokenNoIdentity: "That process doesn't describe itself as a token (it has no name or ticker). Check the id.",
+  tokenImpersonatesRegistered:
+    "This token presents itself as a registered token (its name or ticker matches one), so Gleam won't add it. Check the process id.",
   tokenNoInfo: "The process didn't answer Info like a token.",
   tokenNotIndexed:
     "No process with that id is on Arweave yet. Check that you copied the whole id; a token spawned in the last few minutes may not be indexed yet.",
