@@ -208,7 +208,9 @@ the check and the act?
 **Encoding and limits.** base64url versus base64, BigInt parsing, tag
 encoding, JSON depth and size. Do two parts of the code decode the same
 value differently? Is each size limit enforced before the expensive
-work, not after?
+work, not after? Do fetches of a peer's or gateway's response cap the
+body before `text()` or `json()` reads it, so a lying node can't make
+the service worker buffer an unbounded body?
 
 **Trusting stored data.** Data read back from `chrome.storage` is
 treated as already validated. Can a different code path, an older
