@@ -25,4 +25,9 @@ describe("impersonatesRegisteredToken", () => {
     expect(flagged("\u0251O")).toBe(true);
     expect(flagged("A\u0585")).toBe(true);
   });
+
+  it("catches U+051D, which renders as the Latin w", () => {
+    expect(normalizeTokenLabel("Ar\u051Deave")).toBe("arweave");
+    expect(flagged("Ar\u051Deave", "Ar\u051Deave")).toBe(true);
+  });
 });
