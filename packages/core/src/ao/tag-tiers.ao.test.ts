@@ -35,10 +35,17 @@ describe("tierTags", () => {
     expect(tiers.app).toEqual([tag("Quantity", "5")]);
   });
 
-  it("matches Action exactly and keeps a second Action as an app tag", () => {
-    const tiers = tierTags([tag("action", "Transfer"), tag("Action", "Vote"), tag("Action", "Burn")]);
-    expect(tiers.headline?.tag).toEqual(tag("Action", "Vote"));
-    expect(tiers.app).toEqual([tag("action", "Transfer"), tag("Action", "Burn")]);
+  it("does not headline an Action given twice, in any case, and no Type heads it instead", () => {
+    const tiers = tierTags([tag("action", "Transfer"), tag("Action", "Vote"), tag("Action", "Burn"), tag("Type", "Process")]);
+    expect(tiers.headline).toBeNull();
+    expect(tiers.app).toEqual([tag("action", "Transfer"), tag("Action", "Vote"), tag("Action", "Burn"), { ...tag("Type", "Process"), unusual: { expected: "Message" } }]);
+  });
+
+  it("does not headline a Quantity given twice, in any case: both copies stay app tags", () => {
+    const tiers = tierTags([tag("Action", "Transfer"), tag("Quantity", "1"), tag("quantity", "1000000"), tag("Recipient", WALLET)]);
+    expect(tiers.headline).toEqual({ tag: tag("Action", "Transfer"), quantity: null });
+    expect(tiers.app).toEqual([tag("Quantity", "1"), tag("quantity", "1000000")]);
+    expect(tiers.addresses).toEqual([tag("Recipient", WALLET)]);
   });
 
   it("lifts a protocol tag with an unexpected value into app tags, marked", () => {
@@ -51,11 +58,11 @@ describe("tierTags", () => {
     ]);
   });
 
-  it("reads HyperBEAM's lowercase names, preferring aos's exact case", () => {
+  it("reads HyperBEAM's lowercase names, and treats two Actions as ambiguous rather than preferring one case", () => {
     const tiers = tierTags([tag("action", "Transfer"), tag("quantity", "5"), tag("type", "Message"), tag("variant", "ao.N.1")]);
     expect(tiers.headline).toEqual({ tag: tag("action", "Transfer"), quantity: tag("quantity", "5") });
     expect(tiers.protocol).toEqual([tag("type", "Message"), tag("variant", "ao.N.1")]);
-    expect(tierTags([tag("action", "A"), tag("Action", "B")]).headline?.tag).toEqual(tag("Action", "B"));
+    expect(tierTags([tag("action", "A"), tag("Action", "B")]).headline).toBeNull();
     expect(tierTags([tag("type", "Process")]).headline?.tag).toEqual(tag("type", "Process"));
   });
 
