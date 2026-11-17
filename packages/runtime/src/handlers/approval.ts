@@ -1127,7 +1127,9 @@ export class ApprovalHandler {
   private async findPending(requestId: string): Promise<PendingApprovalRecord> {
     const pending = await this.loadPending();
     const entry = pending.find((candidate) => candidate.request.requestId === requestId);
-    if (!entry) {
+    // Like `findLive`: a record that already carries an outcome is settled,
+    // not pending, so it must not be read or resolved again.
+    if (!entry || entry.outcome) {
       throw new Error(userErrorMessage("approvalNotPending", { id: requestId }));
     }
     return entry;
