@@ -661,10 +661,24 @@ export class ReadsHandler {
    * Re-resolves rather than trusting a client-supplied preview. No-op
    * (but not an error) for an id that's already watched, or for the
    * default AO process id, which is always shown without being stored.
+   *
+   * Refuses a process whose ticker or name presents itself as a
+   * registered token, unless it is that registered token: the same
+   * impersonation filter `getTokenBalances` applies to discovered
+   * tokens. Both add paths — a dApp's `addToken` approval and the
+   * manual paste-a-process-id flow — funnel through here, so the one
+   * check covers both.
    */
   async addWatchedToken(req: { address: string; processId: string }): Promise<TokenBalance> {
     const resolved = await this.previewWatchedToken(req);
     const processId = resolved.processId;
+
+    if (
+      !isRegisteredProcessId(processId) &&
+      impersonatesRegisteredToken({ ticker: resolved.ticker, name: resolved.name })
+    ) {
+      throw new Error(userErrorMessage("tokenImpersonatesRegistered"));
+    }
 
     if (processId !== DEFAULT_AO_PROCESS_ID) {
       await updateStored(this.storage, `${WATCHED_PROCESS_IDS_KEY_PREFIX}${req.address}`, (raw) => {

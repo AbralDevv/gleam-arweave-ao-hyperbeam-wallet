@@ -89,6 +89,8 @@ export const errors = defineMessages({
     notTokenSend: "Not a token send.",
     notCollectibleSend: "Not a collectible send.",
     tokenNoIdentity: "That process doesn't describe itself as a token (it has no name or ticker). Check the id.",
+    tokenImpersonatesRegistered:
+      "This token presents itself as a registered token (its name or ticker matches one), so Gleam won't add it. Check the process id.",
     tokenNoInfo: "The process didn't answer Info like a token.",
     tokenNotIndexed: "No process with that id is on Arweave yet. Check that you copied the whole id; a token spawned in the last few minutes may not be indexed yet.",
     tokenLookupUnreachable: "Couldn't reach {host} to look up that token. Check your connection, or switch gateways in Network settings, then try again.",
@@ -301,6 +303,8 @@ export const errors = defineMessages({
     notTokenSend: "No es un envío de token.",
     notCollectibleSend: "No es un envío de coleccionable.",
     tokenNoIdentity: "Ese proceso no se describe como un token (no tiene nombre ni ticker). Revisa el ID.",
+    tokenImpersonatesRegistered:
+      "Este token se presenta como un token registrado (su nombre o ticker coincide con uno), así que Gleam no lo añadirá. Revisa el ID de proceso.",
     tokenNoInfo: "El proceso no respondió a Info como un token.",
     tokenNotIndexed: "Aún no hay ningún proceso con ese ID en Arweave. Verifica que copiaste el ID completo; un token creado hace pocos minutos puede no estar indexado todavía.",
     tokenLookupUnreachable: "No se pudo conectar con {host} para buscar ese token. Revisa tu conexión o cambia de gateway en Red y peers, e inténtalo de nuevo.",
@@ -512,6 +516,8 @@ export const errors = defineMessages({
     notTokenSend: "Bukan pengiriman token.",
     notCollectibleSend: "Bukan pengiriman koleksi.",
     tokenNoIdentity: "Proses itu tidak menyatakan diri sebagai token (tidak ada nama atau ticker). Periksa ID-nya.",
+    tokenImpersonatesRegistered:
+      "Token ini menyamar sebagai token terdaftar (nama atau ticker-nya cocok dengan salah satunya), jadi Gleam tidak akan menambahkannya. Periksa ID prosesnya.",
     tokenNoInfo: "Proses tidak menjawab Info seperti token.",
     tokenNotIndexed: "Belum ada proses dengan ID itu di Arweave. Pastikan Anda menyalin seluruh ID; token yang dibuat beberapa menit lalu mungkin belum terindeks.",
     tokenLookupUnreachable: "Tidak dapat menjangkau {host} untuk mencari token itu. Periksa koneksi Anda, atau ganti gateway di pengaturan Jaringan, lalu coba lagi.",
@@ -723,6 +729,8 @@ export const errors = defineMessages({
     notTokenSend: "Não é um envio de token.",
     notCollectibleSend: "Não é um envio de colecionável.",
     tokenNoIdentity: "Esse processo não se descreve como token (não tem nome nem ticker). Confira o id.",
+    tokenImpersonatesRegistered:
+      "Este token se apresenta como um token registrado (seu nome ou ticker coincide com um), então a Gleam não vai adicioná-lo. Confira o id do processo.",
     tokenNoInfo: "O processo não respondeu a Info como um token.",
     tokenNotIndexed: "Ainda não há processo com esse id na Arweave. Confira se copiou o id inteiro; um token criado há poucos minutos pode ainda não estar indexado.",
     tokenLookupUnreachable: "Não foi possível acessar {host} para buscar esse token. Verifique sua conexão ou troque de gateway nas configurações de rede e tente novamente.",
@@ -934,6 +942,8 @@ export const errors = defineMessages({
     notTokenSend: "Đây không phải lệnh gửi token.",
     notCollectibleSend: "Đây không phải lệnh gửi vật phẩm sưu tập.",
     tokenNoIdentity: "Process đó không tự mô tả là token (không có tên hoặc ký hiệu). Hãy kiểm tra id.",
+    tokenImpersonatesRegistered:
+      "Token này tự xưng là token đã đăng ký (tên hoặc ký hiệu của nó trùng với một token đã đăng ký), nên Gleam sẽ không thêm nó. Hãy kiểm tra id của process.",
     tokenNoInfo: "Process không trả lời Info như một token.",
     tokenNotIndexed: "Chưa có process nào với id đó trên Arweave. Hãy kiểm tra bạn đã sao chép đủ id; token vừa tạo vài phút trước có thể chưa được lập chỉ mục.",
     tokenLookupUnreachable: "Không kết nối được {host} để tra cứu token đó. Hãy kiểm tra kết nối hoặc đổi gateway trong cài đặt Mạng, rồi thử lại.",
@@ -1145,6 +1155,8 @@ export const errors = defineMessages({
     notTokenSend: "Bu bir token gönderimi değil.",
     notCollectibleSend: "Bu bir koleksiyon öğesi gönderimi değil.",
     tokenNoIdentity: "Bu süreç kendini token olarak tanımlamıyor (adı veya sembolü yok). Kimliği kontrol edin.",
+    tokenImpersonatesRegistered:
+      "Bu token, kayıtlı bir token gibi görünüyor (adı veya sembolü bir kayıtlı tokenla eşleşiyor), bu yüzden Gleam onu eklemeyecek. Process id'yi kontrol edin.",
     tokenNoInfo: "Süreç, Info isteğine bir token gibi yanıt vermedi.",
     tokenNotIndexed: "Arweave'de henüz bu kimliğe sahip bir süreç yok. Kimliğin tamamını kopyaladığınızı kontrol edin; son birkaç dakikada oluşturulan bir token henüz dizine eklenmemiş olabilir.",
     tokenLookupUnreachable: "Bu token'ı aramak için {host} adresine ulaşılamadı. Bağlantınızı kontrol edin veya Ağ ayarlarından gateway değiştirin, ardından tekrar deneyin.",
@@ -1356,6 +1368,8 @@ export const errors = defineMessages({
     notTokenSend: "Это не отправка токена.",
     notCollectibleSend: "Это не отправка предмета коллекции.",
     tokenNoIdentity: "Этот процесс не описывает себя как токен (нет названия или тикера). Проверьте ID.",
+    tokenImpersonatesRegistered:
+      "Этот токен выдает себя за зарегистрированный токен (его название или тикер совпадает с зарегистрированным), поэтому Gleam не добавит его. Проверьте ID процесса.",
     tokenNoInfo: "Процесс не ответил на Info как токен.",
     tokenNotIndexed: "Процесса с таким ID в Arweave пока нет. Проверьте, что скопировали ID целиком; токен, созданный несколько минут назад, может быть ещё не проиндексирован.",
     tokenLookupUnreachable: "Не удалось связаться с {host} для поиска токена. Проверьте подключение или смените шлюз в настройках сети и попробуйте снова.",
@@ -1567,6 +1581,8 @@ export const errors = defineMessages({
     notTokenSend: "トークンの送信ではありません。",
     notCollectibleSend: "コレクティブルの送信ではありません。",
     tokenNoIdentity: "そのプロセスはトークンとして自身を示していません（名前もティッカーもありません）。ID を確認してください。",
+    tokenImpersonatesRegistered:
+      "このトークンは登録済みトークンを名乗っています（名前またはティッカーが一致しています）。そのため Gleam は追加しません。プロセス ID を確認してください。",
     tokenNoInfo: "そのプロセスは Info にトークンとして応答しませんでした。",
     tokenNotIndexed: "その ID のプロセスはまだ Arweave にありません。ID 全体をコピーしたか確認してください。数分以内に作成されたトークンは、まだインデックスされていない可能性があります。",
     tokenLookupUnreachable: "トークンを調べるために {host} に接続できませんでした。接続を確認するか、ネットワーク設定でゲートウェイを切り替えてから、もう一度お試しください。",
@@ -1778,6 +1794,8 @@ export const errors = defineMessages({
     notTokenSend: "토큰 전송이 아니에요.",
     notCollectibleSend: "컬렉터블 전송이 아니에요.",
     tokenNoIdentity: "이 프로세스는 토큰 정보(이름이나 티커)가 없어요. ID를 확인하세요.",
+    tokenImpersonatesRegistered:
+      "이 토큰은 등록된 토큰인 것처럼 보입니다(이름이나 티커가 일치합니다). 그래서 Gleam에서 추가하지 않습니다. 프로세스 ID를 확인하세요.",
     tokenNoInfo: "이 프로세스가 토큰처럼 Info에 응답하지 않았어요.",
     tokenNotIndexed: "Arweave에 아직 이 ID의 프로세스가 없어요. ID 전체를 복사했는지 확인하세요. 몇 분 전에 생성된 토큰은 아직 색인되지 않았을 수 있어요.",
     tokenLookupUnreachable: "토큰을 조회하려고 {host}에 연결했지만 실패했어요. 연결을 확인하거나 네트워크 설정에서 게이트웨이를 바꾼 뒤 다시 시도하세요.",
@@ -1989,6 +2007,7 @@ export const errors = defineMessages({
     notTokenSend: "这不是代币转账。",
     notCollectibleSend: "这不是收藏品转账。",
     tokenNoIdentity: "该进程没有将自身描述为代币（没有名称或代币符号）。请检查 id。",
+    tokenImpersonatesRegistered: "该代币冒充已注册代币（其名称或代币符号与已注册代币相符），因此 Gleam 不会添加它。请检查进程 id。",
     tokenNoInfo: "该进程没有像代币那样响应 Info。",
     tokenNotIndexed: "Arweave 上还没有这个 id 的进程。请检查是否复制了完整的 id；最近几分钟创建的代币可能尚未被索引。",
     tokenLookupUnreachable: "无法连接 {host} 查询该代币。请检查网络连接，或在网络设置中切换网关，然后重试。",
@@ -2201,6 +2220,7 @@ export const errors = defineMessages({
     notTokenSend: "這不是代幣轉帳。",
     notCollectibleSend: "這不是收藏品轉帳。",
     tokenNoIdentity: "該行程沒有將自身描述為代幣（沒有名稱或代幣符號）。請檢查 id。",
+    tokenImpersonatesRegistered: "該代幣冒充已註冊代幣（其名稱或代幣符號與已註冊代幣相符），因此 Gleam 不會新增它。請檢查行程 id。",
     tokenNoInfo: "該行程沒有像代幣那樣回應 Info。",
     tokenNotIndexed: "Arweave 上還沒有這個 id 的行程。請檢查是否複製了完整的 id；最近幾分鐘建立的代幣可能尚未被索引。",
     tokenLookupUnreachable: "無法連線至 {host} 查詢該代幣。請檢查網路連線，或在網路設定中切換閘道，然後重試。",
