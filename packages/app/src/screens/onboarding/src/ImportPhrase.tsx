@@ -65,7 +65,7 @@ export function ImportPhrase({ onBack, onValidJWK, derive = defaultDerive }: Imp
   const pendingFocus = useRef<number | null>(null);
 
   // The whole phrase is on screen here, and a screenshot of it is often
-  // synced to a photo backup. Screenshots are allowed everywhere else.
+  // synced to a photo backup.
   const { secureScreen } = usePlatform();
   useEffect(() => secureScreen?.protect(), [secureScreen]);
 

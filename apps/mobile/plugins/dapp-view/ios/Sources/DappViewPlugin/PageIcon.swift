@@ -58,28 +58,44 @@ enum PageIcon {
     }
 
     private static func fetchFirst(_ urls: [URL], completion: @escaping (String?) -> Void) {
-        guard let url = urls.first else {
-            completion(nil)
-            return
-        }
-        var request = URLRequest(url: url)
-        request.httpShouldHandleCookies = false
-        session.dataTask(with: request) { data, response, _ in
-            if let dataUrl = dataUrl(data: data, response: response) {
-                completion(dataUrl)
-            } else {
-                fetchFirst(Array(urls.dropFirst()), completion: completion)
+        Task {
+            for url in urls {
+                if let dataUrl = await fetch(url) {
+                    completion(dataUrl)
+                    return
+                }
             }
-        }.resume()
+            completion(nil)
+        }
     }
 
-    private static func dataUrl(data: Data?, response: URLResponse?) -> String? {
-        guard let data = data, !data.isEmpty, data.count <= maxBytes,
-              let http = response as? HTTPURLResponse, http.statusCode == 200,
+    /// Streams the body and stops at `maxBytes`, so a page can't point this
+    /// at something huge and have it buffered whole.
+    private static func fetch(_ url: URL) async -> String? {
+        var request = URLRequest(url: url)
+        request.httpShouldHandleCookies = false
+        guard let (bytes, response) = try? await session.bytes(for: request) else { return nil }
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200,
               http.url?.scheme?.lowercased() == "https",
-              let type = http.mimeType?.lowercased(), imageTypes.contains(type) else {
+              let type = http.mimeType?.lowercased(), imageTypes.contains(type),
+              http.expectedContentLength <= Int64(maxBytes) else {
+            bytes.task.cancel()
             return nil
         }
+        var data = Data()
+        data.reserveCapacity(maxBytes)
+        do {
+            for try await byte in bytes {
+                if data.count == maxBytes {
+                    bytes.task.cancel()
+                    return nil
+                }
+                data.append(byte)
+            }
+        } catch {
+            return nil
+        }
+        guard !data.isEmpty else { return nil }
         return "data:\(type);base64,\(data.base64EncodedString())"
     }
 }
