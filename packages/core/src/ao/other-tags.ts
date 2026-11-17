@@ -15,26 +15,27 @@ export const L1_TRANSFER_TAG_NAMES: readonly string[] = ["action", "recipient", 
 
 /**
  * Protocol and client tags that every AO message carries and no token acts
- * on, by lowercase name, with the one value that is harmless (`null`: any
- * value). They are left out of the count so it stays rare enough to be
- * read. `Type: Process` or another `Data-Protocol` is counted: AO routes on
- * them. A name the readers know (`Action`, `Recipient`, `Quantity`,
- * `Assign-To`) must never be here.
+ * on, by lowercase name, with the values that are harmless (`null`: any
+ * value). `ao.TN.1` is the legacy testnet variant and `ao.N.1` HyperBEAM's.
+ * They are left out of the count so it stays rare enough to be read.
+ * `Type: Process` or another `Data-Protocol` is counted: AO routes on them.
+ * A name the readers know (`Action`, `Recipient`, `Quantity`, `Assign-To`)
+ * must never be here.
  */
-export const HARMLESS_TAGS: Readonly<Record<string, string | null>> = {
-  "data-protocol": "ao",
-  variant: "ao.TN.1",
-  type: "Message",
+export const HARMLESS_TAGS: Readonly<Record<string, readonly string[] | null>> = {
+  "data-protocol": ["ao"],
+  variant: ["ao.TN.1", "ao.N.1"],
+  type: ["Message"],
   sdk: null,
   "content-type": null,
 };
 
-/** Whether `tag` is one of `HARMLESS_TAGS` with its harmless value. */
+/** Whether `tag` is one of `HARMLESS_TAGS` with a harmless value. */
 export function isHarmlessTag(tag: Tag): boolean {
   const name = tag.name.toLowerCase();
   if (!Object.hasOwn(HARMLESS_TAGS, name)) return false;
-  const value = HARMLESS_TAGS[name];
-  return value === null || tag.value === value;
+  const values = HARMLESS_TAGS[name];
+  return values === null || values?.includes(tag.value) === true;
 }
 
 /**

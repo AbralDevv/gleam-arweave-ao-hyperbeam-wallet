@@ -123,7 +123,7 @@ describe("SigningApprovalScreen hidden characters", () => {
     expect(container.textContent).toContain("Trans<U+202E>fer");
   });
 
-  it("breaks long unbroken tag values in the generic screen's tag chips", () => {
+  it("breaks a long unbroken headline value on the generic screen", () => {
     const { container } = render(
       <SigningApprovalScreen
         origin="https://example.com"
@@ -132,11 +132,11 @@ describe("SigningApprovalScreen hidden characters", () => {
         onSign={vi.fn()}
       />,
     );
-    const chip = Array.from(container.querySelectorAll("span")).find((element) => element.textContent?.startsWith("Action:"));
-    expect(chip?.className).toContain("break-all");
+    const value = Array.from(container.querySelectorAll("span")).find((element) => element.textContent === "a".repeat(2000));
+    expect(value?.closest(".break-all")).not.toBeNull();
   });
 
-  it("breaks long unbroken tag values in batch item cards", () => {
+  it("breaks a long unbroken app tag value in batch item cards", () => {
     const { container } = render(
       <SigningApprovalScreen
         origin="https://example.com"
@@ -146,7 +146,7 @@ describe("SigningApprovalScreen hidden characters", () => {
           items: [
             {
               decodedData: "",
-              tags: [{ name: "Action", value: "a".repeat(2000) }],
+              tags: [{ name: "Note", value: "a".repeat(2000) }],
               target: null,
               payloadHash: SIGN_MESSAGE_PREVIEW.payloadHash,
               transfer: null,
@@ -157,7 +157,7 @@ describe("SigningApprovalScreen hidden characters", () => {
         onSign={vi.fn()}
       />,
     );
-    const chip = Array.from(container.querySelectorAll("span")).find((element) => element.textContent?.startsWith("Action:"));
-    expect(chip?.className).toContain("break-all");
+    const value = Array.from(container.querySelectorAll("span")).find((element) => element.textContent === "a".repeat(2000));
+    expect(value?.closest(".break-all")).not.toBeNull();
   });
 });

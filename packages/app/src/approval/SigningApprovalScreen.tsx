@@ -5,9 +5,9 @@ import { RiskNotice } from "@gleam/ui/src/primitives/risk-notice.tsx";
 import { useT, type MessageKey, type TFunction } from "../i18n";
 import { formatWinstonAsAr } from "../screens/main-screen/src/formatWinston";
 import { errorText } from "../i18n/errors";
-import { UntrustedText } from "./UntrustedText";
 import { SignedDataText } from "./SignedDataText";
 import { DataItemCard } from "../transfer-review/DataItemCard";
+import { TagTiers } from "../transfer-review/TagTiers";
 import { RequestHeader } from "../transfer-review/RequestHeader";
 import { ReviewButtons, TransferReview } from "../transfer-review/TransferReview";
 import { requestTypeText, transferRequestFromPreview, type TransferContext } from "../transfer-review/model";
@@ -152,18 +152,26 @@ export function SigningApprovalScreen({
         {unreadable ? <RiskNotice>{t("transferReview.unreadableTokenTransfer")}</RiskNotice> : null}
 
         {preview.items ? (
-          <div className="flex flex-col gap-3">
-            <span className="text-caption font-semibold uppercase tracking-wide text-muted">
-              {preview.items.length === 1
-                ? t("approval.oneItemToSign")
-                : t("approval.manyItemsToSign", { count: preview.items.length })}
-            </span>
+          <div className="flex flex-col gap-8">
+            {preview.items.length > 1 ? (
+              <span className="-mb-4 text-caption font-semibold uppercase tracking-wide text-muted">
+                {t("approval.manyItemsToSign", { count: preview.items.length })}
+              </span>
+            ) : null}
             {preview.items.map((item, index) => (
-              <DataItemCard key={index} index={index} item={item} />
+              <DataItemCard
+                key={index}
+                index={index}
+                item={item}
+                numbered={preview.items !== null && preview.items.length > 1}
+                walletAddress={from?.address ?? null}
+              />
             ))}
           </div>
         ) : (
           <>
+            <TagTiers tags={preview.tags} target={preview.recipient} walletAddress={from?.address ?? null} />
+
             {preview.decodedData !== null && preview.decodedData !== "" ? (
               <div className="flex flex-col gap-1.5">
                 <span className="text-caption font-semibold uppercase tracking-wide text-muted">{t("approval.decodedData")}</span>
@@ -182,18 +190,6 @@ export function SigningApprovalScreen({
               </div>
             ) : null}
 
-            {preview.tags.length > 0 ? (
-              <div className="flex flex-col gap-1.5">
-                <span className="text-caption font-semibold uppercase tracking-wide text-muted">{t("approval.tags")}</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {preview.tags.map((tag, index) => (
-                    <span key={index} className="break-all rounded-md bg-mist px-2 py-1 font-mono text-micro text-foreground">
-                      <span className="text-muted"><UntrustedText text={tag.name} />:</span> <UntrustedText text={tag.value} />
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ) : null}
 
             <AddrBlock
               label={t("approval.signingPayloadHash")}

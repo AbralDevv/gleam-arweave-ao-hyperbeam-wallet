@@ -1,0 +1,93 @@
+import type { Tag } from "../models/tag";
+import { HARMLESS_TAGS, isHarmlessTag } from "./other-tags";
+
+const ARWEAVE_ADDRESS_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const EVM_ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
+
+/**
+ * Protocol and client tags shown with the protocol tags whatever their
+ * value, by lowercase name. Display only: unlike `HARMLESS_TAGS`, they still
+ * count beside a transfer's headline. `ao-types` is HyperBEAM's type
+ * annotation, and `reference` is a message counter that is not always a
+ * number.
+ */
+const PROTOCOL_ANY_VALUE: ReadonlySet<string> = new Set([
+  "reference",
+  "client",
+  "client-version",
+  "signing-client",
+  "signing-client-version",
+  "ao-types",
+  "require-codec",
+  "accept-bundle",
+  "signing-format",
+]);
+
+/**
+ * A tag sorted under App tags. `unusual` marks a protocol tag name carrying
+ * a value we don't expect, with the values we do.
+ */
+export type AppTag = Tag & { unusual?: { expected: string } };
+
+/**
+ * A signed item's tags sorted for reading. Every tag lands in exactly one
+ * place, so nothing is dropped: the headline's tags, then addresses, app
+ * tags and protocol tags, each in signing order.
+ */
+export interface TagTiers {
+  /** `Action` (with `Quantity` beside it), or else a `Type` other than `Message`. */
+  headline: { tag: Tag; quantity: Tag | null } | null;
+  /** Tags whose value is an Arweave or EVM address. */
+  addresses: Tag[];
+  app: AppTag[];
+  /** Protocol tags carrying a value we expect. */
+  protocol: Tag[];
+}
+
+/**
+ * The first tag named `name`, in that exact case if there is one, else in
+ * any case: HyperBEAM lowercases names (`action`), while aos matches
+ * `Action` exactly.
+ */
+function byName(tags: readonly Tag[], name: string, accept: (tag: Tag) => boolean = () => true): Tag | null {
+  const lower = name.toLowerCase();
+  return (
+    tags.find((tag) => tag.name === name && accept(tag)) ??
+    tags.find((tag) => tag.name.toLowerCase() === lower && accept(tag)) ??
+    null
+  );
+}
+
+function isAddress(value: string): boolean {
+  return ARWEAVE_ADDRESS_PATTERN.test(value) || EVM_ADDRESS_PATTERN.test(value);
+}
+
+/**
+ * Sorts tags into the approval screen's tiers. The first `Action` heads the
+ * item and any other stays an app tag. A protocol tag name with an
+ * unexpected value is never shown among the protocol tags: it is lifted
+ * into App tags and marked.
+ */
+export function tierTags(tags: readonly Tag[]): TagTiers {
+  const action = byName(tags, "Action");
+  const type = action === null ? byName(tags, "Type", (tag) => tag.value !== "Message") : null;
+  const quantity = action !== null ? byName(tags, "Quantity") : null;
+  const headlineTag = action ?? type;
+
+  const tiers: TagTiers = {
+    headline: headlineTag === null ? null : { tag: headlineTag, quantity },
+    addresses: [],
+    app: [],
+    protocol: [],
+  };
+  for (const tag of tags) {
+    if (tag === headlineTag || tag === quantity) continue;
+    const name = tag.name.toLowerCase();
+    const expected = Object.hasOwn(HARMLESS_TAGS, name) ? HARMLESS_TAGS[name] : undefined;
+    if (isHarmlessTag(tag) || PROTOCOL_ANY_VALUE.has(name)) tiers.protocol.push(tag);
+    else if (expected) tiers.app.push({ ...tag, unusual: { expected: expected.join(" / ") } });
+    else if (isAddress(tag.value)) tiers.addresses.push(tag);
+    else tiers.app.push(tag);
+  }
+  return tiers;
+}
