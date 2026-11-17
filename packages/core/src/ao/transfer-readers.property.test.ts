@@ -51,6 +51,13 @@ function expectCountsTheRest(list: readonly Tag[], other: Tag[]): void {
   expect(other.map((tag) => tag.name.toLowerCase())).not.toEqual(expect.arrayContaining(["quantity"]));
 }
 
+/**
+ * A floor on how many runs reach the transfer branch, so a generator change
+ * cannot quietly test nothing. Runs average about 75 transfers in 2000, and
+ * the count swings by seed, so the floor sits well below that.
+ */
+const MIN_TRANSFERS = 20;
+
 describe("a transfer reading names exactly what the tags carry", () => {
   it("readAoTransferMessage", () => {
     let transfers = 0;
@@ -69,7 +76,7 @@ describe("a transfer reading names exactly what the tags carry", () => {
       }),
       { numRuns: 2000 },
     );
-    expect(transfers).toBeGreaterThan(50);
+    expect(transfers).toBeGreaterThan(MIN_TRANSFERS);
   });
 
   it("readL1TokenTransfer", () => {
@@ -90,6 +97,6 @@ describe("a transfer reading names exactly what the tags carry", () => {
       }),
       { numRuns: 2000 },
     );
-    expect(transfers).toBeGreaterThan(50);
+    expect(transfers).toBeGreaterThan(MIN_TRANSFERS);
   });
 });
