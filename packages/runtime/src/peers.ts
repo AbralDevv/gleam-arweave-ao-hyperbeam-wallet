@@ -93,15 +93,40 @@ function httpsUrls(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((url): url is string => typeof url === "string" && url.startsWith("https://")) : [];
 }
 
+/** Peers the user turned off in Network & peers. */
+async function readDisabledPeerUrls(storage: StoragePort): Promise<string[]> {
+  try {
+    const raw = await storage.get<{ peers?: unknown }>(NETWORK_SETTINGS_KEY);
+    if (!Array.isArray(raw?.peers)) return [];
+    return raw.peers.flatMap((peer: unknown) =>
+      typeof peer === "object" &&
+      peer !== null &&
+      typeof (peer as { url?: unknown }).url === "string" &&
+      (peer as { enabled?: unknown }).enabled === false
+        ? [stripTrailingSlashes((peer as { url: string }).url)]
+        : [],
+    );
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Where L1 token reads go besides the gateway: the `L1_TOKEN_NODE_URLS`
- * that passed the last probe, then the peers it found serving them. With
- * none of those, every shipped node, so the list is never empty.
+ * that passed the last probe, then the peers it found serving them, less
+ * any the user removed or turned off. With none of those left, every
+ * shipped node, so the list is never empty.
  */
 export async function readL1NodeUrls(storage: StoragePort): Promise<string[]> {
-  const stored = await readDiscoveredPeers(storage);
-  const down = new Set(httpsUrls(stored?.l1Down));
-  const urls = [...new Set([...L1_TOKEN_NODE_URLS.filter((url) => !down.has(url)), ...httpsUrls(stored?.l1Urls)])];
+  const [stored, dismissed, disabled] = await Promise.all([
+    readDiscoveredPeers(storage),
+    readDismissedPeers(storage),
+    readDisabledPeerUrls(storage),
+  ]);
+  const skipped = new Set([...httpsUrls(stored?.l1Down), ...dismissed, ...disabled]);
+  const urls = [...new Set([...L1_TOKEN_NODE_URLS, ...httpsUrls(stored?.l1Urls)])].filter(
+    (url) => !skipped.has(stripTrailingSlashes(url)),
+  );
   return urls.length > 0 ? urls : [...L1_TOKEN_NODE_URLS];
 }
 
