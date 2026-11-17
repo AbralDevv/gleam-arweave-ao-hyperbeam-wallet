@@ -234,16 +234,16 @@ html:not(.js) .i-launch-word { background: none; color: var(--on-ink); }
   100% { color: transparent; }
 }
 
-/* Wind-up: the word strains against the pad */
-.i-launch-link.armed .i-launch-word { animation: il-strain .1s linear infinite; }
-.i-launch-link.armed .i-launch-word.glint { animation: il-glint .9s ease-in-out, il-strain .1s linear infinite; }
+/* Wind-up: a faint hum, the word barely straining against the pad */
+.i-launch-link.armed .i-launch-word { animation: il-strain .16s linear infinite; }
+.i-launch-link.armed .i-launch-word.glint { animation: il-glint 1.3s ease-in-out, il-strain .16s linear infinite; }
 .i-launch-link.armed .i-launch-beam,
 .i-launch-link.armed .i-launch-tip { filter: drop-shadow(0 0 8px rgba(115, 201, 232, .7)); }
 @keyframes il-strain {
   0%, 100% { translate: 0 0; }
-  25% { translate: 1px -1px; }
-  50% { translate: -1px 0; }
-  75% { translate: 1px 1px; }
+  25% { translate: .5px -.5px; }
+  50% { translate: -.5px 0; }
+  75% { translate: .5px .5px; }
 }
 
 .i-launch-streak {
