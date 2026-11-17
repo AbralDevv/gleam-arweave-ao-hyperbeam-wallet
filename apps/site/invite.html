@@ -9,7 +9,7 @@
   <meta name="robots" content="noindex">
   <title>Get in early with Gleam</title>
   <meta name="description"
-    content="Gleam is a better wallet for the PermaWeb. Get in, start earning points, and help shape what comes next.">
+    content="Gleam is a better wallet for the PermaWeb. Get in, start earning GLEAM.">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -17,7 +17,7 @@
   <meta property="og:site_name" content="Gleam">
   <meta property="og:title" content="Get in early with Gleam">
   <meta property="og:description"
-    content="Gleam is a better wallet for the PermaWeb. Get in, start earning points, and help shape what comes next.">
+    content="Gleam is a better wallet for the PermaWeb. Get in, start earning GLEAM.">
   <meta property="og:url" content="https://gleamwallet.app/invite.html">
   <meta property="og:image" content="https://gleamwallet.app/img/og-invite.jpg">
   <meta property="og:image:width" content="1200">
@@ -28,7 +28,7 @@
   <meta name="twitter:site" content="@gleam_wallet">
   <meta name="twitter:title" content="Get in early with Gleam">
   <meta name="twitter:description"
-    content="Gleam is a better wallet for the PermaWeb. Get in, start earning points, and help shape what comes next.">
+    content="Gleam is a better wallet for the PermaWeb. Get in, start earning GLEAM.">
   <meta name="twitter:image" content="https://gleamwallet.app/img/og-invite.jpg">
   <meta name="twitter:image:alt" content="Get in early. A Gleam invite ticket stamped Invite only, with open seats.">
   <link rel="preload" as="font" type="font/woff2" href="fonts/inter-var-latin.woff2" crossorigin>
@@ -41,6 +41,7 @@
   <script defer src="pages.js"></script>
   <script defer src="program.js"></script>
   <script defer src="invite.js"></script>
+  <script defer src="invite-launch.js"></script>
 </head>
 
 <body class="program invite-page" data-invite>
@@ -57,8 +58,7 @@
           <div class="beam i-stack" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span>
           </div>
           <h1 class="display i-title">Get in early.</h1>
-          <p class="line">Gleam is a <strong>better wallet for the PermaWeb</strong>. Get in, <strong>start
-            earning points</strong>, and help shape what comes next.</p>
+          <p class="line">Gleam is a <strong>better wallet for the PermaWeb</strong>.</p>
         </div>
 
         <div class="ticket" data-ticket aria-hidden="true">
@@ -75,10 +75,10 @@
         <div class="i-states">
 
           <div class="invite-state" data-state="code" hidden>
-            <p class="line i-bonus" data-member-bonus hidden>A friend's code adds 10% to your points, every day.</p>
+            <p class="line i-bonus" data-member-bonus hidden>Earn 10% more GLEAM with this invite</p>
             <p class="i-cta">
               <a class="button" href="https://chromewebstore.google.com/detail/gleam/einabcphdmlicabnjllaaallnebfkmki"
-                data-umami-event="invite-add-to-chrome">Accept invite</a>
+                data-umami-event="invite-add-to-chrome" data-accept-invite>Accept invite</a>
             </p>
             <p class="i-cta i-open-app" data-open-app-wrap hidden>
               <a class="button" data-open-app data-umami-event="invite-open-in-app">Open in Gleam</a>
@@ -142,20 +142,50 @@
       <div class="wrap">
         <ul class="vision-today invite-facts">
           <li><strong>Early access.</strong> Get in while Gleam is invite-only.</li>
-          <li><strong>Earn points for holding and inviting.</strong> Every AR and AO you hold earns points, and so do
+          <li><strong>Earn GLEAM for holding and inviting.</strong> Every AR and AO you hold earns points, and so do
             the
             friends you bring in.</li>
         </ul>
 
-        <div class="links">
-          <a href="gleam.html">Gleam Points</a>
-          <a href="points.html">How points work</a>
-          <a href="./">About Gleam</a>
-          <a href="privacy.html">Privacy</a>
-          <a href="terms.html">Terms</a>
-        </div>
       </div>
     </section>
+    <div class="cut i-cut" aria-hidden="true">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+        <polygon points="0,100 100,0 100,100" fill="#0A0A0A" />
+        <line x1="0" y1="108" x2="100" y2="8" stroke="#FF1717" />
+        <line x1="0" y1="104" x2="100" y2="4" stroke="#8B12FF" />
+        <line x1="0" y1="100" x2="100" y2="0" stroke="#73C9E8" />
+        <line x1="0" y1="96" x2="100" y2="-4" stroke="#FFE45C" />
+        <line x1="0" y1="92" x2="100" y2="-8" stroke="#28F02D" />
+      </svg>
+    </div>
+    <section class="ink i-launch" data-launch-pad>
+      <canvas class="i-launch-sparks" aria-hidden="true"></canvas>
+      <div class="wrap">
+        <a class="i-launch-link" href="gleam.html" aria-label="What is GLEAM?" data-launch
+          data-umami-event="invite-gleam-launch">
+          <span class="i-launch-beam" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><i></i></span>
+          <span class="i-launch-tip" aria-hidden="true">
+            <svg viewBox="0 0 26 34">
+              <defs>
+                <linearGradient id="i-launch-tip" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#FF1717" />
+                  <stop offset=".25" stop-color="#8B12FF" />
+                  <stop offset=".5" stop-color="#73C9E8" />
+                  <stop offset=".75" stop-color="#FFE45C" />
+                  <stop offset="1" stop-color="#28F02D" />
+                </linearGradient>
+              </defs>
+              <path d="M8 3 L23 17 L8 31" fill="none" stroke="url(#i-launch-tip)" stroke-width="4"
+                stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <span class="i-launch-word" aria-hidden="true"><i><b>G</b></i><i><b>L</b></i><i><b>E</b></i><i><b>A</b></i><i><b>M</b></i></span>
+        </a>
+      </div>
+      <div class="i-launch-streak" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+    </section>
+    <div class="i-launch-black" aria-hidden="true"></div>
   </main>
 
   <footer class="site-footer">

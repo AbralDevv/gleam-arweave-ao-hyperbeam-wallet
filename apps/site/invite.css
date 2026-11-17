@@ -28,6 +28,9 @@
 .i-hero .invite-sub { margin-top: 36px; font-size: clamp(1.5rem, 3vw, 2rem); letter-spacing: -0.03em; }
 .i-hero .small strong { color: var(--on-ink); font-family: var(--mono); letter-spacing: .04em; }
 .i-notfound { color: var(--beam-red) !important; font-weight: 600; }
+/* pages.js still fills these for the ticket to read (the code, the seats),
+   but the ticket shows both, so the page doesn't repeat them */
+.i-hero [data-invite-code], .i-hero [data-seats] { display: none !important; }
 
 .i-hero .invite-meta { margin: 0; padding-bottom: clamp(40px, 8vh, 80px); }
 .i-hero .vision-count { border-color: var(--ink-line); background: var(--ink-2); color: var(--on-ink-muted); }
@@ -62,6 +65,14 @@
         radial-gradient(circle var(--notch) at 100% 62%, transparent 98%, #000) right / 51% 100% no-repeat;
 }
 html:not(.js) .ticket { display: none; }
+
+/* A ticket with a code on it copies the code when tapped */
+.ticket[role="button"] { cursor: pointer; transition: translate .25s var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.ticket[role="button"]:hover { translate: 0 -4px; }
+.ticket[role="button"]:active { translate: 0 1px; transition-duration: .08s; }
+.ticket[role="button"]:focus-visible { outline: 2px solid var(--beam-sky); outline-offset: 6px; }
+.ticket.nudge { animation: tk-nudge .7s .15s cubic-bezier(.3, 1.4, .5, 1); }
+@keyframes tk-nudge { 40% { translate: 0 -8px; } }
 
 .ticket-top { display: flex; align-items: center; justify-content: space-between; }
 .ticket-kicker { font: 600 .75rem/1 var(--mono); letter-spacing: .16em; text-transform: uppercase; color: var(--on-ink-muted); }
@@ -160,9 +171,124 @@ html:not(.js) .ticket { display: none; }
 .i .invite-facts { margin-top: 0; max-width: none; }
 .i .invite-facts li { padding: clamp(22px, 4vh, 36px) 0; border-color: #DCDCDC; font-size: clamp(1.125rem, 2.2vw, 1.625rem); line-height: 1.3; letter-spacing: -0.015em; }
 .i .invite-facts strong { display: block; margin-bottom: 8px; font-size: clamp(2rem, 6vw, 3.75rem); line-height: 1; letter-spacing: -0.045em; }
-.i .links { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 40px; font-size: .9375rem; }
-.i .links a { text-underline-offset: 3px; }
+.i .invite-facts li:last-child { border-bottom: 0; }
+
+/* The close: the beam runs in from off the left edge and points at GLEAM.
+   The word is the link to gleam.html, and tapping it launches the beam off
+   the right edge so gleam.html can open on it arriving from the left. */
+
+.i-cut { background: linear-gradient(var(--paper) calc(100% - 3px), var(--ink) calc(100% - 3px)); }
+
+.i-launch { position: relative; overflow: hidden; padding: clamp(72px, 11vw, 150px) 0 clamp(88px, 13vw, 170px); }
+.i-launch-sparks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+html:not(.motion) .i-launch-sparks { display: none; }
+
+.i-launch-link { display: flex; align-items: center; color: inherit; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.i-launch-link:focus-visible { outline: none; }
+.i-launch-link:focus-visible .i-launch-word { outline: 2px solid var(--beam-sky); outline-offset: 10px; border-radius: 8px; }
+
+.i-launch-beam,
+.i-launch-streak { display: flex; flex-direction: column; height: 10px; }
+.i-launch-beam { position: relative; flex: 1; min-width: 40px; margin-left: calc(50% - 50vw); }
+.i-launch-beam span,
+.i-launch-streak span { flex: 1; }
+.i-launch-beam span:nth-child(1), .i-launch-streak span:nth-child(1) { background: var(--beam-red); }
+.i-launch-beam span:nth-child(2), .i-launch-streak span:nth-child(2) { background: var(--beam-purple); }
+.i-launch-beam span:nth-child(3), .i-launch-streak span:nth-child(3) { background: var(--beam-sky); }
+.i-launch-beam span:nth-child(4), .i-launch-streak span:nth-child(4) { background: var(--beam-yellow); }
+.i-launch-beam span:nth-child(5), .i-launch-streak span:nth-child(5) { background: var(--beam-green); }
+
+/* A point riding the beam into the word: gleam.html's gate pulse */
+.i-launch-beam i {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 160px;
+  height: 4px;
+  margin: -2px 0 0 -160px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, #fff);
+  box-shadow: 0 0 14px 2px rgba(255, 255, 255, .5);
+  opacity: 0;
+}
+
+.i-launch-tip { flex: none; width: 26px; height: 34px; margin-left: -23px; }
+.i-launch-tip svg { display: block; width: 100%; height: 100%; overflow: visible; }
+
+
+.i-launch-word {
+  display: block;
+  margin-left: clamp(10px, 1.5vw, 22px);
+  padding: .05em .08em .05em .02em;
+  font-size: clamp(76px, 21vw, 280px);
+  font-weight: 900;
+  line-height: .8;
+  letter-spacing: -0.065em;
+  white-space: nowrap;
+}
+.i-launch-word i { font-style: normal; }
+/* Each letter clips its own glint, so the wave can scale the letter around it.
+   The glint crosses them one after another, so it still reads as one sweep. */
+.i-launch-word b {
+  font-weight: inherit;
+  background: linear-gradient(100deg,
+      var(--on-ink) 38%,
+      color-mix(in oklab, var(--beam-purple) 18%, var(--on-ink)) 44%,
+      #fff 48%, #fff 52%,
+      color-mix(in oklab, var(--beam-sky) 20%, var(--on-ink)) 56%,
+      var(--on-ink) 62%) 100% 0 / 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+html:not(.js) .i-launch-word b { background: none; color: var(--on-ink); }
+.i-launch-word.glint b { animation: il-glint .7s calc(var(--n, 0) * 80ms) ease-in-out both; }
+@keyframes il-glint { from { background-position: 100% 0; } to { background-position: 0 0; } }
+
+/* Wind-up: a wave of size runs through the letters, G to M, the way the
+   beam is about to go */
+.i-launch-word i { display: inline-block; transform-origin: 50% 90%; }
+.i-launch-word i:nth-child(2) { --n: 1; }
+.i-launch-word i:nth-child(3) { --n: 2; }
+.i-launch-word i:nth-child(4) { --n: 3; }
+.i-launch-word i:nth-child(5) { --n: 4; }
+.i-launch-link.armed .i-launch-word i { animation: il-wave 1.4s calc(var(--n, 0) * 90ms) cubic-bezier(.4, 0, .3, 1) infinite; }
+@keyframes il-wave {
+  0%, 45%, 100% { scale: 1; }
+  18% { scale: 1.06; }
+}
+/* The swelling letter takes its beam colour, G to M in beam order, the way
+   gleam.html lights GLEAM */
+.i-launch-word i:nth-child(1) { --c: var(--beam-red); }
+.i-launch-word i:nth-child(2) { --c: var(--beam-purple); }
+.i-launch-word i:nth-child(3) { --c: var(--beam-sky); }
+.i-launch-word i:nth-child(4) { --c: var(--beam-yellow); }
+.i-launch-word i:nth-child(5) { --c: var(--beam-green); }
+.i-launch-link.armed .i-launch-word b { animation: il-tint 1.4s calc(var(--n, 0) * 90ms) cubic-bezier(.4, 0, .3, 1) infinite; }
+@keyframes il-tint {
+  0%, 50%, 100% { color: transparent; }
+  18% { color: var(--c); }
+}
+.i-launch-link.armed .i-launch-beam,
+.i-launch-link.armed .i-launch-tip { filter: drop-shadow(0 0 8px rgba(115, 201, 232, .7)); }
+
+.i-launch-streak {
+  position: absolute;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 0 14px rgba(255, 255, 255, .5));
+}
+.i-launch-black { position: fixed; inset: 0; z-index: 50; background: var(--ink); opacity: 0; pointer-events: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .ticket-code span.lock, .ticket-seats i.open, .ticket.stamped .ticket-stamp, .ticket.burst::after { animation: none; }
+  .ticket-code span.lock, .ticket-seats i.open, .ticket.stamped .ticket-stamp, .ticket.burst::after, .ticket.nudge { animation: none; }
+  .i-launch-word b, .i-launch-word i, .i-launch-link.armed .i-launch-word i, .i-launch-link.armed .i-launch-word b { animation: none; }
+}
+
+/* Leaving for gleam.html: the browser holds this page until that one paints,
+   so the black after the launch runs straight into the gate */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
 }

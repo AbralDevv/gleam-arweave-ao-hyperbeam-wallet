@@ -2875,3 +2875,22 @@ html.waking .v-gate.full .v-gate-orb {
     transition: none;
   }
 }
+
+/* Arriving from invite.html's launch: that page fires the beam off its right
+   edge and cuts to black, and this one picks the beam up coming in from the
+   left, into the gate. Both pages opt in, so the browser also holds the black
+   until this page paints. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+}
+html.gate .v-gate-beam { view-transition-name: gate-beam; }
+::view-transition-new(gate-beam) {
+  animation: gate-beam-in 0.5s 0.12s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes gate-beam-in {
+  from { clip-path: inset(0 100% 0 0); }
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.3s;
+}

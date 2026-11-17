@@ -60,7 +60,11 @@
       for (var i = locked; i < cells.length; i++) {
         cells[i].textContent = GLYPHS.charAt(Math.floor(Math.random() * GLYPHS.length));
       }
-      if (locked >= cells.length) window.clearInterval(spinTimer);
+      if (locked >= cells.length) {
+        window.clearInterval(spinTimer);
+        // Once, as the code lands: a small lift says the ticket can be picked up
+        if (ticket.getAttribute("role") === "button") program.restart(ticket, "nudge");
+      }
     }, 45);
   }
 
@@ -123,13 +127,88 @@
           resolve(code);
         }
       }
-      if (look === "ready") stamp("In Gleam", true);
-      else if (look === "full") stamp("Full");
-      else if (look === "void") stamp("Not found");
-      else stamp("");
+      stamp(stampFor(look), look === "ready");
+      copyable(look === "code" || look === "ready");
     }
     drawSeats();
   }
+
+  function stampFor(state) {
+    if (state === "ready") return "In Gleam";
+    if (state === "full") return "Full";
+    if (state === "void") return "Not found";
+    return "";
+  }
+
+  // A ticket with a live code on it is a button that copies the code
+  function copyable(on) {
+    if (on) {
+      ticket.setAttribute("role", "button");
+      ticket.setAttribute("tabindex", "0");
+      ticket.setAttribute("aria-label", "Copy invite code");
+      ticket.removeAttribute("aria-hidden");
+    } else {
+      ticket.removeAttribute("role");
+      ticket.removeAttribute("tabindex");
+      ticket.removeAttribute("aria-label");
+      ticket.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  var copiedTimer = 0;
+  function copied() {
+    if (window.umami) window.umami.track("invite-copy-code");
+    stamp("Copied");
+    program.ping(7);
+    window.clearTimeout(copiedTimer);
+    copiedTimer = window.setTimeout(function () {
+      stamp(stampFor(look));
+    }, 1600);
+  }
+
+  // In-app browsers (X's among them) often refuse the clipboard API. Try the
+  // older copy command next, and failing that leave the code selected on the
+  // ticket so it can be copied by hand.
+  function fallbackCopy() {
+    var field = document.createElement("textarea");
+    field.value = shownCode;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.opacity = "0";
+    document.body.appendChild(field);
+    field.select();
+    var ok = false;
+    try {
+      ok = document.execCommand("copy");
+    } catch {
+      ok = false;
+    }
+    field.remove();
+    if (ok) {
+      copied();
+      return;
+    }
+    var range = document.createRange();
+    range.selectNodeContents(codeEl);
+    var selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+
+  function copy() {
+    if (ticket.getAttribute("role") !== "button" || !shownCode) return;
+    if (!navigator.clipboard || !navigator.clipboard.writeText) {
+      fallbackCopy();
+      return;
+    }
+    navigator.clipboard.writeText(shownCode).then(copied, fallbackCopy);
+  }
+  ticket.addEventListener("click", copy);
+  ticket.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    e.preventDefault();
+    copy();
+  });
 
   var watched = [ready, seats, notFound].concat(Object.keys(states).map(function (k) { return states[k]; }));
   var observer = new window.MutationObserver(render);
