@@ -77,6 +77,9 @@ Some of the classes here are adapted from Cloudflare's
   value beyond 2^53?
 - Is the recipient or target validated as an Arweave address before
   signing? Can a data item's tags change who or what the item is for?
+- For batch methods, is there a count cap, or a total-size cap that
+  bounds the batch, and does the approval preview show the item count
+  and every item, so one transfer can't hide among many?
 
 ### Crypto (tiers 1 and 2)
 
