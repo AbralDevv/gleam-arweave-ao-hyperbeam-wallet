@@ -52,6 +52,15 @@ describe("escapeHiddenCharacters", () => {
     expect(escapeHiddenCharacters("A\ufe0fO")).toEqual(["A", { codePoint: "U+FE0F" }, "O"]);
   });
 
+  it("splits out every blank but the ordinary space", () => {
+    const blanks = [0xa0, 0x1680, ...Array.from({ length: 11 }, (_, i) => 0x2000 + i), 0x202f, 0x205f, 0x2800, 0x3000];
+    for (const code of blanks) {
+      const hex = code.toString(16).toUpperCase().padStart(4, "0");
+      expect(escapeHiddenCharacters(`A${String.fromCodePoint(code)}O`)).toEqual(["A", { codePoint: `U+${hex}` }, "O"]);
+    }
+    expect(escapeHiddenCharacters("A B\tC\nD")).toEqual(["A B\tC\nD"]);
+  });
+
   it("splits out the Mongolian and supplementary variation selectors", () => {
     expect(escapeHiddenCharacters("A\u180bO")).toEqual(["A", { codePoint: "U+180B" }, "O"]);
     expect(escapeHiddenCharacters("A\u180dO")).toEqual(["A", { codePoint: "U+180D" }, "O"]);

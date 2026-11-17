@@ -6,11 +6,14 @@
  * invisible Hangul fillers, the combining grapheme joiner, the Khmer
  * invisible characters and the variation selectors (including the
  * Mongolian and supplementary ones), which render as nothing but make two
- * byte-distinct strings look identical.
+ * byte-distinct strings look identical. And every blank but the ordinary
+ * space: the other space separators (no-break, ideographic, the fixed
+ * widths) and the blank Braille pattern, which pass for a space or for
+ * nothing.
  */
 // Combining marks come first: eslint's no-misleading-character-class
 // flags any character in the class that a combining mark follows.
-const HIDDEN_CHARACTER = /(?![\t\n\r])[\u034f\u17b4\u180b-\u180f\ufe00-\ufe0f\u{e0100}-\u{e01ef}\u17b5\p{Cf}\p{Cc}\u2028\u2029\u115f\u1160\u3164\uffa0]/gu;
+const HIDDEN_CHARACTER = /(?![\t\n\r ])[\u034f\u17b4\u180b-\u180f\ufe00-\ufe0f\u{e0100}-\u{e01ef}\u17b5\p{Cf}\p{Cc}\p{Zs}\u2028\u2029\u115f\u1160\u3164\uffa0\u2800]/gu;
 
 export type TextPart = string | { codePoint: string };
 
