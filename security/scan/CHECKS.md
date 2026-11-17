@@ -131,6 +131,10 @@ Some of the classes here are adapted from Cloudflare's
 - Values that come from the network, such as token names, logos and
   decimals, are under a lying gateway's or AO unit's control. Can any
   of them change the amount or recipient the preview shows?
+- Does every page- or network-supplied string on an approval screen go
+  through `UntrustedText` (or an equivalent escape plus bidi
+  isolation)? For any render that doesn't, is there a proof its input
+  alphabet can't carry hidden or bidi characters?
 
 ### Hardware wallet signing
 
