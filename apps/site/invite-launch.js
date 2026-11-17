@@ -29,7 +29,9 @@
 
   // ---- The idle pulse ------------------------------------------------------
 
+  // Not while hovering: the wave is colouring the letters then
   function glint() {
+    if (armed) return;
     program.restart(word, "glint");
   }
 
@@ -109,11 +111,16 @@
   // the word warms a little rather than flashing
   var litAt = letters.map(function () { return 0; });
   function land(sh, now) {
-    if (Math.random() > 0.3 || now - litAt[sh.letter] < 700) return;
+    if (armed || Math.random() > 0.3 || now - litAt[sh.letter] < 700) return;
     litAt[sh.letter] = now;
-    var el = letters[sh.letter];
-    el.style.setProperty("--c", COLORS[sh.s]);
-    program.restart(el, "hit");
+    // A transition rather than an animation, so it leaves the hover wave be
+    var el = letters[sh.letter].querySelector("b");
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.color = "color-mix(in oklab, " + COLORS[sh.s] + " 22%, transparent)";
+    void el.offsetWidth;
+    el.style.transition = "color 1.1s ease-out";
+    el.style.color = "";
   }
 
   function line(color, x0, y0, x1, y1, width, alpha) {
@@ -247,7 +254,12 @@
     var ease = "cubic-bezier(.6, 0, .9, .4)";
     var away = "cubic-bezier(.7, 0, 1, .5)";
 
-    program.enableSound(function () { program.thump(0, 0.6); });
+    // A rising run of glass pings across the launch: a sparkle, not a hit
+    program.enableSound(function () {
+      [2, 4, 7, 9, 12, 14].forEach(function (step, i) {
+        program.ping(step, i * 0.11);
+      });
+    });
 
     // A breath in
     anim(word, [{ scale: "1" }, { scale: ".94 1.04" }], { duration: 260, easing: "cubic-bezier(.3, 0, .3, 1)" })
@@ -268,7 +280,6 @@
       })
       .then(function (left) {
         // Off the right edge, its tail sweeping after it
-        program.whoosh(1, 1);
         anim(beam, [{ clipPath: "inset(0)" }, { clipPath: "inset(0 0 0 100%)" }], { duration: 320, easing: away });
         anim(streak, [
           { clipPath: "inset(0 0 0 " + left + "px)" },

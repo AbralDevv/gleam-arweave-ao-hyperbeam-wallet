@@ -204,6 +204,7 @@ html:not(.motion) .i-launch-sparks { display: none; }
 .i-launch-tip { flex: none; width: 26px; height: 34px; margin-left: -23px; }
 .i-launch-tip svg { display: block; width: 100%; height: 100%; overflow: visible; }
 
+
 .i-launch-word {
   display: block;
   margin-left: clamp(10px, 1.5vw, 22px);
@@ -212,6 +213,13 @@ html:not(.motion) .i-launch-sparks { display: none; }
   font-weight: 900;
   line-height: .8;
   letter-spacing: -0.065em;
+  white-space: nowrap;
+}
+.i-launch-word i { font-style: normal; }
+/* Each letter clips its own glint, so the wave can scale the letter around it.
+   The glint crosses them one after another, so it still reads as one sweep. */
+.i-launch-word b {
+  font-weight: inherit;
   background: linear-gradient(100deg,
       var(--on-ink) 38%,
       color-mix(in oklab, var(--beam-purple) 18%, var(--on-ink)) 44%,
@@ -222,29 +230,36 @@ html:not(.motion) .i-launch-sparks { display: none; }
   background-clip: text;
   color: transparent;
 }
-html:not(.js) .i-launch-word { background: none; color: var(--on-ink); }
-.i-launch-word i { font-style: normal; }
-.i-launch-word.glint { animation: il-glint 1.3s ease-in-out; }
+html:not(.js) .i-launch-word b { background: none; color: var(--on-ink); }
+.i-launch-word.glint b { animation: il-glint .7s calc(var(--n, 0) * 80ms) ease-in-out both; }
 @keyframes il-glint { from { background-position: 100% 0; } to { background-position: 0 0; } }
 
-/* A shard landing lights its letter in the shard's colour for a moment */
-.i-launch-word i.hit { animation: il-hit 1.1s ease-out; }
-@keyframes il-hit {
-  0% { color: color-mix(in oklab, var(--c) 22%, transparent); }
-  100% { color: transparent; }
+/* Wind-up: a wave of size runs through the letters, G to M, the way the
+   beam is about to go */
+.i-launch-word i { display: inline-block; transform-origin: 50% 90%; }
+.i-launch-word i:nth-child(2) { --n: 1; }
+.i-launch-word i:nth-child(3) { --n: 2; }
+.i-launch-word i:nth-child(4) { --n: 3; }
+.i-launch-word i:nth-child(5) { --n: 4; }
+.i-launch-link.armed .i-launch-word i { animation: il-wave 1.4s calc(var(--n, 0) * 90ms) cubic-bezier(.4, 0, .3, 1) infinite; }
+@keyframes il-wave {
+  0%, 45%, 100% { scale: 1; }
+  18% { scale: 1.06; }
 }
-
-/* Wind-up: a faint hum, the word barely straining against the pad */
-.i-launch-link.armed .i-launch-word { animation: il-strain .16s linear infinite; }
-.i-launch-link.armed .i-launch-word.glint { animation: il-glint 1.3s ease-in-out, il-strain .16s linear infinite; }
+/* The swelling letter takes its beam colour, G to M in beam order, the way
+   gleam.html lights GLEAM */
+.i-launch-word i:nth-child(1) { --c: var(--beam-red); }
+.i-launch-word i:nth-child(2) { --c: var(--beam-purple); }
+.i-launch-word i:nth-child(3) { --c: var(--beam-sky); }
+.i-launch-word i:nth-child(4) { --c: var(--beam-yellow); }
+.i-launch-word i:nth-child(5) { --c: var(--beam-green); }
+.i-launch-link.armed .i-launch-word b { animation: il-tint 1.4s calc(var(--n, 0) * 90ms) cubic-bezier(.4, 0, .3, 1) infinite; }
+@keyframes il-tint {
+  0%, 50%, 100% { color: transparent; }
+  18% { color: var(--c); }
+}
 .i-launch-link.armed .i-launch-beam,
 .i-launch-link.armed .i-launch-tip { filter: drop-shadow(0 0 8px rgba(115, 201, 232, .7)); }
-@keyframes il-strain {
-  0%, 100% { translate: 0 0; }
-  25% { translate: .5px -.5px; }
-  50% { translate: -.5px 0; }
-  75% { translate: .5px .5px; }
-}
 
 .i-launch-streak {
   position: absolute;
@@ -258,7 +273,7 @@ html:not(.js) .i-launch-word { background: none; color: var(--on-ink); }
 
 @media (prefers-reduced-motion: reduce) {
   .ticket-code span.lock, .ticket-seats i.open, .ticket.stamped .ticket-stamp, .ticket.burst::after { animation: none; }
-  .i-launch-word, .i-launch-word i.hit, .i-launch-link.armed .i-launch-word { animation: none; }
+  .i-launch-word b, .i-launch-word i, .i-launch-link.armed .i-launch-word i, .i-launch-link.armed .i-launch-word b { animation: none; }
 }
 
 /* Leaving for gleam.html: the browser holds this page until that one paints,
