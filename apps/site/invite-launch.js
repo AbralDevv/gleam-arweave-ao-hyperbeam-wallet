@@ -60,6 +60,7 @@
   var scrollRate = 0;
   var dpr = 1;
   var geo = null;
+  var measuredAt = 0;
 
   function bez(a, b, c, d, t) {
     var u = 1 - t;
@@ -71,8 +72,11 @@
     var t = tip.getBoundingClientRect();
     var b = beam.getBoundingClientRect();
     dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(p.width * dpr);
-    canvas.height = Math.round(p.height * dpr);
+    var w = Math.round(p.width * dpr);
+    var h = Math.round(p.height * dpr);
+    if (canvas.width !== w) canvas.width = w;
+    if (canvas.height !== h) canvas.height = h;
+    measuredAt = window.performance.now();
     geo = {
       x0: t.left - p.left + 18,
       by: b.top - p.top,
@@ -135,6 +139,9 @@
 
   function frame(now) {
     var showering = (armed || now < scrollUntil) && !busy;
+    // The layout can move under a running shower (a resize, the page
+    // reflowing), so the arrow's place is re-read while shards are flowing
+    if (showering && now - measuredAt > 250) measure();
     if (showering && now - lastSpawn > 28) {
       var n = armed ? 2 : Math.max(1, Math.round(scrollRate));
       for (var i = 0; i < n; i++) spawn(now);
