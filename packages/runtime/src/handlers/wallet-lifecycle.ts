@@ -719,13 +719,15 @@ export class WalletLifecycleHandler {
   }
 
   async renameWallet(req: { walletId: string; name: string }): Promise<void> {
-    const wallets = await loadWallets(this.storage);
-    const index = wallets.findIndex((wallet) => wallet.id === req.walletId);
-    if (index === -1) {
-      throw new Error(userErrorMessage("noStoredWallet", { wallet: req.walletId }));
-    }
-    wallets[index] = { ...wallets[index]!, name: req.name, updatedAt: Date.now() };
-    await saveWallets(this.storage, wallets);
+    return this.keySession.withSessionLock(async () => {
+      const wallets = await loadWallets(this.storage);
+      const index = wallets.findIndex((wallet) => wallet.id === req.walletId);
+      if (index === -1) {
+        throw new Error(userErrorMessage("noStoredWallet", { wallet: req.walletId }));
+      }
+      wallets[index] = { ...wallets[index]!, name: req.name, updatedAt: Date.now() };
+      await saveWallets(this.storage, wallets);
+    });
   }
 
   /**
@@ -734,13 +736,15 @@ export class WalletLifecycleHandler {
    * cancelled or failed download.
    */
   async confirmWalletBackup(req: { walletId: string }): Promise<void> {
-    const wallets = await loadWallets(this.storage);
-    const index = wallets.findIndex((wallet) => wallet.id === req.walletId);
-    if (index === -1) {
-      throw new Error(userErrorMessage("noStoredWallet", { wallet: req.walletId }));
-    }
-    wallets[index] = { ...wallets[index]!, backupConfirmedAt: Date.now() };
-    await saveWallets(this.storage, wallets);
+    return this.keySession.withSessionLock(async () => {
+      const wallets = await loadWallets(this.storage);
+      const index = wallets.findIndex((wallet) => wallet.id === req.walletId);
+      if (index === -1) {
+        throw new Error(userErrorMessage("noStoredWallet", { wallet: req.walletId }));
+      }
+      wallets[index] = { ...wallets[index]!, backupConfirmedAt: Date.now() };
+      await saveWallets(this.storage, wallets);
+    });
   }
 
   async switchWallet(req: { walletId: string }): Promise<void> {
@@ -1021,17 +1025,21 @@ export class WalletLifecycleHandler {
         }
       }
 
-      const stored = await loadWallets(this.storage);
-      let changed = false;
-      const next = stored.map((wallet) => {
-        const upgrade = upgrades.find((candidate) => candidate.walletId === wallet.id);
-        if (!upgrade || !wallet.encryptedKeyfile || !sameEnvelope(wallet.encryptedKeyfile, upgrade.from)) {
-          return wallet;
-        }
-        changed = true;
-        return { ...wallet, encryptedKeyfile: upgrade.to };
+      // The unlock starts this inside its own lock without awaiting it, so
+      // this queues behind that unlock rather than waiting on itself.
+      await this.keySession.withSessionLock(async () => {
+        const stored = await loadWallets(this.storage);
+        let changed = false;
+        const next = stored.map((wallet) => {
+          const upgrade = upgrades.find((candidate) => candidate.walletId === wallet.id);
+          if (!upgrade || !wallet.encryptedKeyfile || !sameEnvelope(wallet.encryptedKeyfile, upgrade.from)) {
+            return wallet;
+          }
+          changed = true;
+          return { ...wallet, encryptedKeyfile: upgrade.to };
+        });
+        if (changed) await saveWallets(this.storage, next);
       });
-      if (changed) await saveWallets(this.storage, next);
     } catch (error) {
       console.warn("Gleam kept the existing keyfile encryption; the upgrade will retry on the next unlock.", error);
     }

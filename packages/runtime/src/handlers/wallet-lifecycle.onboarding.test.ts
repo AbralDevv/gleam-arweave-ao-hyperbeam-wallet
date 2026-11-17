@@ -713,6 +713,37 @@ async function encryptV1(text: string, password: string, walletId: string, addre
   };
 }
 
+/**
+ * Holds the first `local:wallets` read after `arm()` until `release()`,
+ * so a test can land another write between that read and its save.
+ */
+function holdNextWalletsRead(storage: StoragePort) {
+  const get = storage.get.bind(storage);
+  let armed = false;
+  let reached!: () => void;
+  const readHeld = new Promise<void>((resolve) => (reached = resolve));
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  storage.get = async <T,>(key: string) => {
+    if (armed && key === "local:wallets") {
+      armed = false;
+      const value = await get<T>(key);
+      reached();
+      await held;
+      return value;
+    }
+    return get<T>(key);
+  };
+  return {
+    arm: () => (armed = true),
+    readHeld,
+    release,
+  };
+}
+
+/** Lets every in-memory write already started finish. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
 describe("WalletLifecycleHandler: Argon2id envelope upgrade on unlock", () => {
   let storage: StoragePort;
   let handler: WalletLifecycleHandler;
@@ -897,6 +928,26 @@ describe("WalletLifecycleHandler: Argon2id envelope upgrade on unlock", () => {
 
     const wallets = await storedWallets();
     expect(wallets.map((wallet) => wallet.name)).toEqual(["Renamed meanwhile", "Second"]);
+  });
+
+  it("does not bring back a wallet deleted while the upgrade was writing", async () => {
+    const first = await handler.createWallet({ name: "First", password: GOOD_PASSWORD });
+    const second = await handler.importWallet({ jwk: validJWK(), name: "Second", password: GOOD_PASSWORD });
+    await downgradeToV1();
+    await handler.lockWallet();
+    const gate = holdNextWalletsRead(storage);
+
+    await handler.unlockWallet({ password: GOOD_PASSWORD });
+    gate.arm();
+    await gate.readHeld;
+    const deleted = handler.deleteWallet({ walletId: second.id });
+    await settle();
+    gate.release();
+    await Promise.all([deleted, handler.envelopeUpgradeSettled()]);
+
+    const wallets = await storedWallets();
+    expect(wallets.map((wallet) => wallet.id)).toEqual([first.id]);
+    expect(wallets[0]!.encryptedKeyfile!.version).toBe(2);
   });
 
   it("re-encrypts a version 2 envelope once the Argon2id cost is raised", async () => {
@@ -1658,5 +1709,38 @@ describe("WalletLifecycleHandler: confirmWalletBackup", () => {
     const secondState = state.wallets.find((w) => w.id === second.id)!;
     expect(firstState.backupConfirmedAt).not.toBeNull();
     expect(secondState.backupConfirmedAt).toBeNull();
+  });
+});
+
+describe("WalletLifecycleHandler: wallet edits racing a delete", () => {
+  let storage: StoragePort;
+  let handler: WalletLifecycleHandler;
+
+  beforeEach(() => {
+    storage = createFakeStorage();
+    handler = new WalletLifecycleHandler(storage, keySession, TEST_KDF);
+  });
+
+  async function storedIds(): Promise<string[]> {
+    return ((await storage.get<Wallet[]>("local:wallets")) ?? []).map((wallet) => wallet.id);
+  }
+
+  it.each([
+    ["renameWallet", (h: WalletLifecycleHandler, walletId: string) => h.renameWallet({ walletId, name: "Renamed" })],
+    ["confirmWalletBackup", (h: WalletLifecycleHandler, walletId: string) => h.confirmWalletBackup({ walletId })],
+  ])("%s does not bring back a wallet deleted while it was saving", async (_, edit) => {
+    const first = await handler.addWatchWallet({ address: "a".repeat(43) });
+    const second = await handler.addWatchWallet({ address: "b".repeat(43) });
+    const gate = holdNextWalletsRead(storage);
+
+    gate.arm();
+    const edited = edit(handler, first.id);
+    await gate.readHeld;
+    const deleted = handler.deleteWallet({ walletId: second.id });
+    await settle();
+    gate.release();
+    await Promise.all([edited, deleted]);
+
+    expect(await storedIds()).toEqual([first.id]);
   });
 });
