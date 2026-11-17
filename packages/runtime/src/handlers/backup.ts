@@ -36,6 +36,8 @@ import {
   VaultKdfError,
   wrapBackupKey,
   zeroize,
+  DEFAULT_ARGON2ID_PARAMS,
+  envelopeNeedsUpgrade,
   type EncryptOptions,
 } from "@gleam/core/signer";
 import { userErrorMessage } from "@gleam/core/src/models/user-errors.ts";
@@ -334,7 +336,9 @@ export class BackupHandler {
   /**
    * The salt and cost of a stored wallet's envelope, so the key an unlock
    * derives for the wallets opens the backup key too, with no second
-   * Argon2id run.
+   * Argon2id run. Only an envelope already at the current cost is reused:
+   * copying a weaker envelope's params would wrap the backup key — the
+   * key to the whole vault backup — below the current cost.
    */
   private async vaultEncryptOptions(): Promise<EncryptOptions> {
     const wallets = await this.storage.get<unknown>(WALLETS_KEY);
@@ -342,9 +346,11 @@ export class BackupHandler {
       .filter(isValidWallet)
       .map((wallet) => wallet.encryptedKeyfile)
       .find((candidate): candidate is VaultEnvelopeV2 => candidate?.version === 2);
-    if (!envelope) return {};
-    const { memoryKiB, iterations, parallelism, salt } = envelope;
-    return { params: { memoryKiB, iterations, parallelism }, salt };
+    if (envelope && !envelopeNeedsUpgrade(envelope)) {
+      const { memoryKiB, iterations, parallelism, salt } = envelope;
+      return { params: { memoryKiB, iterations, parallelism }, salt };
+    }
+    return { params: DEFAULT_ARGON2ID_PARAMS };
   }
 
   /**
