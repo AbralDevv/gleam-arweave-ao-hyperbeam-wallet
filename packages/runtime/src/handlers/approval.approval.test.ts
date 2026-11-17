@@ -1634,6 +1634,54 @@ describe("ApprovalHandler: transferAoTokens signing approval", () => {
     });
   });
 
+  it("an already-resolved record is refused by getApproval and resolveApproval, and the submitter is never called again", async () => {
+    storage = createWatchableStorage();
+    await seedGrant(storage);
+    presenter = createFakePresenter();
+    const submitTransfer = vi.fn().mockResolvedValue({ txId: "ao-message-id-123" });
+    const handler = new ApprovalHandler(storage, keySession, presenter, { submitTransfer });
+    await seedWallet(storage);
+    await cacheKey(WALLET_ID, await sharedJwk(), "abc-address");
+
+    const pending = handler.requestApproval({
+      kind: "transferAoTokens",
+      origin: "https://bazar.arweave.net",
+      walletId: WALLET_ID,
+      recipient: "recipient-addr",
+      amount: "1000",
+      fee: null,
+      token: "ao-process-id",
+      payload: new Uint8Array(),
+      tags: [],
+    });
+    await vi.waitFor(() => expect(presenter.presented.length).toBe(1));
+    const requestId = presenter.presented[0]!;
+
+    // The state a service-worker restart would leave behind: the record
+    // still stored, but already carrying the outcome `complete` wrote
+    // before the record was dropped.
+    const stored = (await storage.get<{ request: { requestId: string } }[]>("session:pendingApprovals")) ?? [];
+    await storage.set(
+      "session:pendingApprovals",
+      stored.map((entry) =>
+        entry.request.requestId === requestId
+          ? { ...entry, outcome: { approved: true, result: { id: "ao-message-id-123" } } }
+          : entry,
+      ),
+    );
+
+    // A fresh handler, as a restarted worker would create it.
+    const fresh = new ApprovalHandler(storage, keySession, presenter, { submitTransfer });
+
+    await expect(fresh.getApproval({ requestId })).rejects.toThrow(/No pending approval/);
+    await expect(fresh.resolveApproval({ requestId, approved: true })).rejects.toThrow(/No pending approval/);
+    expect(submitTransfer).not.toHaveBeenCalled();
+
+    // The fabricated outcome still settles the dApp's wait, as the
+    // first resolution did.
+    await expect(pending).resolves.toEqual({ id: "ao-message-id-123" });
+  });
+
   it("rejecting a transferAoTokens request never calls the submitter", async () => {
     storage = createWatchableStorage();
     await seedGrant(storage);
