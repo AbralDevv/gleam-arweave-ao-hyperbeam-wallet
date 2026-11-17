@@ -27,6 +27,12 @@ describe("otherTags", () => {
     expect(otherTags(aoTransfer, "ao")).toEqual([]);
   });
 
+  it("counts neither variant, testnet's or HyperBEAM's, but any other", () => {
+    const withVariant = (value: string) => aoTransfer.map((tag) => (tag.name === "Variant" ? { ...tag, value } : tag));
+    expect(otherTags(withVariant("ao.N.1"), "ao")).toEqual([]);
+    expect(otherTags(withVariant("ao.N.2"), "ao")).toEqual([{ name: "Variant", value: "ao.N.2" }]);
+  });
+
   it("counts a tag the AO reader does not model", () => {
     const tags = [...aoTransfer, { name: "X-Forward-To", value: "q".repeat(43) }];
     expect(readAoTransferMessage({ target: PROCESS, tags })?.kind).toBe("transfer");

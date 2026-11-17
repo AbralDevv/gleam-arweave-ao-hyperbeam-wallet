@@ -121,7 +121,7 @@ export function TransferReview({
               })),
               ...request.others.map((item) => ({
                 index: item.index,
-                node: <DataItemCard key={`d${item.index}`} index={item.index} item={item} />,
+                node: <DataItemCard key={`d${item.index}`} index={item.index} item={item} numbered walletAddress={from?.address ?? null} />,
               })),
             ]
               .sort((a, b) => a.index - b.index)
