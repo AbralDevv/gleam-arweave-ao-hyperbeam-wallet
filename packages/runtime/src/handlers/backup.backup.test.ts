@@ -302,6 +302,41 @@ describe("BackupHandler: two devices", () => {
     }
   });
 
+  it("writes again when another device's write replaces its copy", async () => {
+    const first = await backedUp();
+    const second = await unlocked(first.cloud.account, otherVault);
+    await second.backup.setUp({ password: PASSWORD });
+    await new ContactsHandler(second.storage).saveContact({ address: "f".repeat(43), name: "Kai" });
+    await second.backup.markChanged();
+    // The first device wrote from the file as it was before this write.
+    first.cloud.account.afterWrite = (replaced) => {
+      first.cloud.account.file = replaced;
+    };
+    const writes = first.cloud.account.writes;
+    await second.backup.sync();
+    expect(first.cloud.account.writes).toBe(writes + 2);
+
+    const fresh = device(first.cloud.account);
+    await fresh.backup.restore({ password: PASSWORD });
+    expect(fresh.storage.entries.get(CONTACTS_KEY)).toEqual(expect.arrayContaining([expect.objectContaining({ name: "Kai" })]));
+  });
+
+  it("stops after a few tries and keeps the change for the next sync", async () => {
+    const target = await backedUp();
+    const account = target.cloud.account;
+    const replace = (replaced: typeof account.file) => {
+      account.file = replaced;
+      account.afterWrite = replace;
+    };
+    account.afterWrite = replace;
+    await target.backup.markChanged();
+    const writes = account.writes;
+    await target.backup.sync();
+    expect(account.writes).toBe(writes + 3);
+    expect((target.storage.entries.get(BACKUP_STATE_KEY) as { dirtyAt: number | null }).dirtyAt).not.toBeNull();
+    account.afterWrite = null;
+  });
+
   it("drops a deleted wallet from the backup once no device has it", async () => {
     const target = await backedUp();
     const savings = walletsOf(target).find((wallet) => wallet.name === "Savings")!;

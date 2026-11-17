@@ -16,6 +16,8 @@ export class InMemoryCloudAccount {
   revoked = 0;
   /** Runs once at the start of the next read, for tests that interleave work with one. */
   beforeRead: (() => Promise<void>) | null = null;
+  /** Runs once after the next write with the file it replaced, as another install writing just after. */
+  afterWrite: ((replaced: { bytes: Bytes; updatedAt: number } | null) => void) | null = null;
 }
 
 export class InMemoryCloudFile implements CloudFilePort {
@@ -37,8 +39,12 @@ export class InMemoryCloudFile implements CloudFilePort {
   }
 
   async write(bytes: Bytes): Promise<void> {
+    const replaced = this.account.file;
     this.account.file = { bytes: bytes.slice(), updatedAt: Date.now() };
     this.account.writes += 1;
+    const hook = this.account.afterWrite;
+    this.account.afterWrite = null;
+    hook?.(replaced);
   }
 
   async remove(): Promise<void> {
