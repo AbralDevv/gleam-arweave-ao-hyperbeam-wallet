@@ -85,6 +85,12 @@ export interface TransferRequest {
 export interface RecipientRisk {
   firstTime: boolean;
   lookalikeOf: string | null;
+  /**
+   * The recipient `lookalikeOf` was flagged for, when the send pays
+   * several; the warning diffs the known address against it rather than
+   * against the first recipient.
+   */
+  lookalikeRecipient?: string | null;
   unchecked?: boolean;
 }
 

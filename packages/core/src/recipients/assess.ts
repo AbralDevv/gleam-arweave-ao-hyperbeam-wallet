@@ -5,6 +5,12 @@ export interface RecipientAssessment {
   firstTime: boolean;
   /** A trusted address this one closely resembles but isn't: a spoof or a one-character slip. */
   lookalikeOf: string | null;
+  /**
+   * The recipient `lookalikeOf` was flagged for, when several recipients
+   * were folded into one assessment (a batch). A single-recipient check
+   * leaves it unset: there the flagged recipient is the transfer's own.
+   */
+  lookalikeRecipient?: string | null;
 }
 
 /** Characters compared at each end; wallets and block explorers truncate to about this many. */

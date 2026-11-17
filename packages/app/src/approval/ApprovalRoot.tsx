@@ -131,8 +131,9 @@ async function assessRecipientFor(
   const transfer = transferRequestFromPreview(preview);
   if (!transfer || !walletId) return null;
   try {
+    const recipients = recipientsOf(transfer);
     const assessments = await Promise.all(
-      recipientsOf(transfer).map((recipient) =>
+      recipients.map((recipient) =>
         runtime.send<{ walletId: string; recipient: string }, RecipientAssessment | undefined>({
           type: "assessRecipient",
           payload: { walletId, recipient },
@@ -140,9 +141,14 @@ async function assessRecipientFor(
       ),
     );
     if (assessments.some((assessment) => !assessment)) return null;
+    const lookalikeIndex = assessments.findIndex((assessment) => assessment!.lookalikeOf);
     return {
       firstTime: assessments.some((assessment) => assessment!.firstTime),
-      lookalikeOf: assessments.find((assessment) => assessment!.lookalikeOf)?.lookalikeOf ?? null,
+      lookalikeOf: lookalikeIndex >= 0 ? assessments[lookalikeIndex]!.lookalikeOf : null,
+      // The warning names the known address and compares it against the
+      // recipient that was flagged for it, so the fold keeps that recipient
+      // alongside the address it resembles.
+      lookalikeRecipient: lookalikeIndex >= 0 ? recipients[lookalikeIndex]! : null,
     };
   } catch {
     return null;
