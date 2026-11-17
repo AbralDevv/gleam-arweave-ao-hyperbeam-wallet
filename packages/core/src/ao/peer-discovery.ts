@@ -1,3 +1,5 @@
+import { L1_CANARY_PROCESS_ID } from "../models/network";
+
 export interface DiscoverHyperBeamPeersOptions {
   gatewayUrl: string;
   fetchImpl?: typeof fetch;
@@ -207,4 +209,45 @@ export async function discoverHyperBeamPeers({
   } catch {
     return [];
   }
+}
+
+export interface FindL1TokenNodesOptions {
+  candidates: readonly string[];
+  fetchImpl?: typeof fetch;
+  signal?: AbortSignal;
+  concurrency?: number;
+  timeoutMs?: number;
+}
+
+/**
+ * The `candidates` that compute `arweave-scheduler@1.0` processes: those
+ * that answer `L1_CANARY_PROCESS_ID`'s current slot with a number. In the
+ * order given. Never throws.
+ */
+export async function findL1TokenNodes({
+  candidates,
+  fetchImpl = fetch,
+  signal,
+  concurrency = 6,
+  timeoutMs = 8000,
+}: FindL1TokenNodesOptions): Promise<string[]> {
+  const urls = [...new Set(candidates.map(stripTrailingSlashes))];
+  const serves = new Array<boolean>(urls.length).fill(false);
+  let next = 0;
+  const worker = async () => {
+    while (next < urls.length) {
+      if (signal?.aborted) return;
+      const index = next++;
+      try {
+        const response = await fetchImpl(`${urls[index]}/${L1_CANARY_PROCESS_ID}~process@1.0/slot/current`, {
+          signal: withTimeout(signal, timeoutMs),
+        });
+        serves[index] = response.ok && /^\d+$/.test((await response.text()).trim());
+      } catch {
+        serves[index] = false;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, concurrency) }, worker));
+  return urls.filter((_, index) => serves[index]);
 }

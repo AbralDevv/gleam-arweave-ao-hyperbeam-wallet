@@ -10,6 +10,7 @@ import {
   type ReadTokenBalanceOptions,
 } from "@gleam/core/src/ao/index.ts";
 import { peerFailoverOrder, withPeerFailover } from "@gleam/core/src/ao/peer-failover.ts";
+import { COLLECTIBLE_TRANSFER_QUANTITY } from "@gleam/core/src/ao/collectible-transfer.ts";
 import { getBalance as getArBalance } from "@gleam/core/src/arweave/balance.ts";
 import {
   queryActivityTransactions,
@@ -37,13 +38,14 @@ import {
   recordPriceSample,
   type HistoricalPricePoint,
 } from "@gleam/core/src/pricing/index.ts";
-import { DEFAULT_HYPERBEAM_PEER_URLS, L1_TOKEN_NODE_URLS, POINTS_API_URL, isFiatCurrency, isValidNetworkSettings } from "@gleam/core";
+import { DEFAULT_HYPERBEAM_PEER_URLS, POINTS_API_URL, isFiatCurrency, isValidNetworkSettings } from "@gleam/core";
 import { updateStored } from "../storage-update";
-import { mergeDiscoveredPeers, readDismissedPeers, readExtraPeerUrls } from "../peers";
+import { mergeDiscoveredPeers, readDismissedPeers, readExtraPeerUrls, readL1NodeUrls } from "../peers";
 import type {
   ActivityEntry,
   ActivityPage,
   Collectible,
+  CollectibleRef,
   DisplayCurrency,
   NetworkSettings,
   PendingTransfer,
@@ -129,7 +131,14 @@ const NEVER_MINED_ERROR = "This send never reached a block, so nothing moved.";
 const COLLECTIBLES_KEY_PREFIX = "local:collectibles:";
 // Holdings change rarely and discovery is dozens of requests, so a popup
 // open within this window reuses the last result.
-const COLLECTIBLES_TTL_MS = 10 * 60 * 1000;
+/**
+ * How long a discovered list is reused. The popup shows its own copy while
+ * a rediscovery runs, so a short life costs no wait. Holdings changes the
+ * wallet can see (a receive, a send or order settling) mark it stale sooner.
+ */
+const COLLECTIBLES_TTL_MS = 90 * 1000;
+/** Each unconfirmed receipt can cost a metadata and a balance read. */
+const MAX_COLLECTIBLE_RECEIPTS = 10;
 const ACTIVITY_PAGE_LIMIT = 50;
 const WINSTON_PER_AR = 1_000_000_000_000;
 
@@ -255,6 +264,12 @@ function isDiscoveredTokensCache(value: unknown): value is DiscoveredTokensCache
 interface CollectiblesCache {
   savedAt: number;
   collectibles: Collectible[];
+  /** The gateway and peer it was read from; a list read elsewhere is stale. */
+  source?: string;
+}
+
+function collectiblesSource(settings: NetworkSettings): string {
+  return `${settings.gatewayUrl} ${settings.activePeerUrl ?? ""}`;
 }
 
 function isCollectiblesCache(value: unknown): value is CollectiblesCache {
@@ -262,6 +277,7 @@ function isCollectiblesCache(value: unknown): value is CollectiblesCache {
   const candidate = value as Record<string, unknown>;
   return (
     typeof candidate.savedAt === "number" &&
+    (candidate.source === undefined || typeof candidate.source === "string") &&
     Array.isArray(candidate.collectibles) &&
     candidate.collectibles.every(
       (item) =>
@@ -310,12 +326,14 @@ export class ReadsHandler {
    * active one is down. An L1 token reads the peer only as a last resort
    * after the gateway and L1 nodes, so it gets one pass.
    */
-  private readBalance(
+  private async readBalance(
     settings: NetworkSettings,
     options: Omit<ReadTokenBalanceOptions, "gatewayUrl" | "peerUrl">,
   ): Promise<string> {
     const peers = peerFailoverOrder(settings);
-    const read = (peerUrl: string | null) => readTokenBalance({ ...options, gatewayUrl: settings.gatewayUrl, peerUrl });
+    const l1NodeUrls = options.transport === "l1" ? await readL1NodeUrls(this.storage) : undefined;
+    const read = (peerUrl: string | null) =>
+      readTokenBalance({ ...options, gatewayUrl: settings.gatewayUrl, peerUrl, ...(l1NodeUrls ? { l1NodeUrls } : {}) });
     if (peers.length === 0 || options.transport === "l1") return read(settings.activePeerUrl);
     return withPeerFailover(peers, read);
   }
@@ -351,7 +369,8 @@ export class ReadsHandler {
     const key = `${COLLECTIBLES_KEY_PREFIX}${req.address}`;
     const raw = await this.storage.get<unknown>(key);
     const cached = isCollectiblesCache(raw) ? raw : null;
-    if (cached && req.refresh !== true && Date.now() - cached.savedAt < COLLECTIBLES_TTL_MS) {
+    const source = collectiblesSource(await this.loadNetworkSettings());
+    if (cached && req.refresh !== true && cached.source === source && Date.now() - cached.savedAt < COLLECTIBLES_TTL_MS) {
       return cached.collectibles;
     }
 
@@ -364,11 +383,24 @@ export class ReadsHandler {
         if (settings.activePeerUrl === null) {
           throw new Error(userErrorMessage("noPeerConfigured"));
         }
-        const collectibles = await withPeerFailover(peerFailoverOrder(settings), (peerUrl) =>
-          discoverCollectibles({ address: req.address, gatewayUrl: settings.gatewayUrl, peerUrl }),
+        const l1NodeUrls = await readL1NodeUrls(this.storage);
+        const discovered = await withPeerFailover(peerFailoverOrder(settings), (peerUrl) =>
+          discoverCollectibles({ address: req.address, gatewayUrl: settings.gatewayUrl, peerUrl, l1NodeUrls }),
         );
+        // A send still pending hasn't reached the asset yet, so its balance
+        // reads as held. It stays off the list until the send settles.
+        const sending = new Set(
+          (await this.loadActivityLog(req.address)).flatMap((entry) =>
+            entry.type === "send" && entry.status === "pending" && entry.collectible ? [entry.collectible.id] : [],
+          ),
+        );
+        const collectibles = discovered.filter((collectible) => !sending.has(collectible.id));
         // Queued behind forgetCollectible, which updates the same cache.
-        await updateStored<CollectiblesCache>(this.storage, key, () => ({ savedAt: Date.now(), collectibles }));
+        await updateStored<CollectiblesCache>(this.storage, key, () => ({
+          savedAt: Date.now(),
+          collectibles,
+          source: collectiblesSource(settings),
+        }));
         return collectibles;
       } catch (error) {
         if (cached) return cached.collectibles;
@@ -391,6 +423,13 @@ export class ReadsHandler {
       isCollectiblesCache(raw)
         ? { ...raw, collectibles: raw.collectibles.filter((collectible) => collectible.id !== req.id) }
         : undefined,
+    );
+  }
+
+  /** Makes the next `getCollectibles` rediscover, keeping the list to show meanwhile. */
+  private async markCollectiblesStale(address: string): Promise<void> {
+    await updateStored<CollectiblesCache>(this.storage, `${COLLECTIBLES_KEY_PREFIX}${address}`, (current) =>
+      isCollectiblesCache(current) ? { ...current, savedAt: 0 } : undefined,
     );
   }
 
@@ -743,9 +782,10 @@ export class ReadsHandler {
       settings.gatewayUrl,
     ).catch(() => new Map<string, number>());
     const swapHeights = new Map<string, number>();
+    const l1NodeUrls = await readL1NodeUrls(this.storage);
     await Promise.all(
       [...new Set(l1Entries.flatMap((entry) => (entry.token ? [entry.token] : [])))].map(async (id) => {
-        for (const node of L1_TOKEN_NODE_URLS) {
+        for (const node of l1NodeUrls) {
           try {
             swapHeights.set(id, await readTokenSwapHeight(id, node));
             return;
@@ -833,8 +873,15 @@ export class ReadsHandler {
       // Receipts are extra detail; a failed query shouldn't blank the feed.
       queryL1TokenReceipts(req.address, settings.gatewayUrl, ACTIVITY_PAGE_LIMIT).catch(() => []),
     ]);
-    const receipts = await this.receiptsForListedTokens(req.address, l1Receipts, settings);
-    const gatewayEntries = [...(await this.resolveSingleUnitTransfers([...arEntries, ...aoEntries], settings)), ...receipts];
+    const [receipts, collectibleReceipts] = await Promise.all([
+      this.receiptsForListedTokens(req.address, l1Receipts, settings),
+      this.heldCollectibleReceipts(req.address, l1Receipts, settings),
+    ]);
+    const gatewayEntries = [
+      ...(await this.resolveSingleUnitTransfers([...arEntries, ...aoEntries], settings)),
+      ...receipts,
+      ...collectibleReceipts,
+    ];
 
     return mergeActivity(localLog, gatewayEntries, ACTIVITY_PAGE_LIMIT);
   }
@@ -867,6 +914,56 @@ export class ReadsHandler {
       }),
     );
     return receipts.filter((entry) => entry.token && fungible.has(entry.token));
+  }
+
+  /**
+   * L1 receipts of a collectible the wallet holds now, as collectible
+   * receives. A receipt is anyone's claim, so one counts only for an asset
+   * whose spawn tags make it unique and whose balance this wallet holds:
+   * the cached collectibles, else a balance read, for the newest receipt
+   * of each asset and at most `MAX_COLLECTIBLE_RECEIPTS` of them.
+   */
+  private async heldCollectibleReceipts(
+    address: string,
+    receipts: ActivityEntry[],
+    settings: NetworkSettings,
+  ): Promise<ActivityEntry[]> {
+    const newest = new Map<string, ActivityEntry>();
+    for (const entry of receipts) {
+      if (entry.token && entry.amount === COLLECTIBLE_TRANSFER_QUANTITY && !newest.has(entry.token)) newest.set(entry.token, entry);
+    }
+    if (newest.size === 0) return [];
+    const raw = await this.storage.get<unknown>(`${COLLECTIBLES_KEY_PREFIX}${address}`);
+    const cached = new Map((isCollectiblesCache(raw) ? raw.collectibles : []).map((collectible) => [collectible.id, collectible]));
+    const held = await Promise.all(
+      [...newest.values()].slice(0, MAX_COLLECTIBLE_RECEIPTS).map(async (entry): Promise<ActivityEntry | null> => {
+        const id = entry.token!;
+        const metadata = await this.tryTokenMetadata(id, settings);
+        if (metadata?.transport !== "l1" || metadata.assetClass !== "unique") return null;
+        const known = cached.get(id);
+        if (!known) {
+          const quantity = await this.readBalance(settings, { processId: id, address, transport: "l1" }).catch(() => "0");
+          if (BigInt(quantity) === 0n) return null;
+        }
+        const collectible: CollectibleRef = known
+          ? { id, name: known.name, ...(known.imageUrl ? { imageUrl: known.imageUrl } : {}) }
+          : { id, ...(metadata.name ? { name: metadata.name } : {}) };
+        return {
+          txId: entry.txId,
+          type: "receive",
+          status: entry.status,
+          address: entry.address,
+          amount: null,
+          tags: entry.tags,
+          timestamp: entry.timestamp,
+          collectible,
+        };
+      }),
+    );
+    const received = held.filter((entry): entry is ActivityEntry => entry !== null);
+    // The cached list predates this receive.
+    if (received.some((entry) => !cached.has(entry.collectible!.id))) await this.markCollectiblesStale(address);
+    return received;
   }
 
   /**
@@ -937,7 +1034,11 @@ export class ReadsHandler {
         settled.set(entry.txId, { ...entry, status: "failed", error: NEVER_MINED_ERROR });
       }
     }
-    if (settled.size > 0) await this.settleActivity(address, settled);
+    if (settled.size === 0) return;
+    await this.settleActivity(address, settled);
+    // A collectible send or market order that confirmed or failed has
+    // changed what the wallet holds, or put back what it hid.
+    if ([...settled.values()].some((entry) => entry.collectible || entry.swap)) await this.markCollectiblesStale(address);
   }
 
   /**

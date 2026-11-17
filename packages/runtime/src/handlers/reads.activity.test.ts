@@ -201,7 +201,7 @@ describe("ReadsHandler: getTokenBalances", () => {
 
     expect(balances.find((b) => b.processId === FODDER)).toMatchObject({ ticker: "FODDER", denomination: 12, quantity: "1000000000000" });
     expect(calls).toContain(`https://arweave.net/${FODDER}~process@1.0/now/as/balance?as=execution&balance=addr1`);
-    expect(calls.some((url) => new URL(url).origin === new URL(PEER).origin && url.includes(FODDER))).toBe(false);
+    expect(calls.some((url) => new URL(url).origin === new URL(PEER).origin && url.includes(`${FODDER}~process@1.0/now/as/balance`))).toBe(false);
   });
 
   it("resolves ticker/denomination/name for an unregistered watched token from its spawn tags", async () => {
@@ -1251,6 +1251,47 @@ describe("ReadsHandler: promotePendingActivity", () => {
     expect(updatedLog?.find((e) => e.txId === "tx-pending")?.status).toBe("confirmed");
   });
 
+  it("marks the collectibles stale once a collectible send confirms", async () => {
+    const storage = createFakeStorage();
+    const asset = "A".repeat(43);
+    const recipient = "R".repeat(43);
+    await storage.set("local:activityLog:addr1", [
+      { txId: "nft-send", type: "send", status: "pending", address: recipient, amount: null, tags: [], timestamp: 500, collectible: { id: asset, name: "Pic" } },
+    ]);
+    await storage.set("local:collectibles:addr1", { savedAt: Date.now(), collectibles: [], source: "x" });
+    globalThis.fetch = vi.fn(async () =>
+      Response.json({
+        data: {
+          transactions: {
+            edges: [
+              {
+                cursor: "nft-send",
+                node: {
+                  id: "nft-send",
+                  owner: { address: "addr1" },
+                  recipient: asset,
+                  quantity: { winston: "1" },
+                  tags: [
+                    { name: "action", value: "transfer" },
+                    { name: "recipient", value: recipient },
+                    { name: "quantity", value: "1" },
+                  ],
+                  block: { timestamp: 500 },
+                },
+              },
+            ],
+          },
+        },
+      }),
+    ) as unknown as typeof fetch;
+
+    await new ReadsHandler(storage).promotePendingActivity("addr1");
+
+    const log = await storage.get<Array<{ txId: string; status: string }>>("local:activityLog:addr1");
+    expect(log?.find((e) => e.txId === "nft-send")?.status).toBe("confirmed");
+    expect(await storage.get("local:collectibles:addr1")).toMatchObject({ savedAt: 0 });
+  });
+
   it("leaves a still-genuinely-pending entry untouched when the gateway hasn't indexed it yet", async () => {
     const storage = createFakeStorage();
     await storage.set("local:activityLog:addr1", [
@@ -1606,6 +1647,62 @@ describe("ReadsHandler: discovered tokens", () => {
     expect(one).toMatchObject({ type: "receive", token: FODDER, amount: "1" });
     expect(one?.collectible).toBeUndefined();
     expect(page.entries.find((e) => e.txId === "forged")).toBeUndefined();
+  });
+
+  it("shows an L1 receipt of a collectible the wallet holds as a collectible receive, and drops one it doesn't hold", async () => {
+    const CACHED = "C".repeat(43);
+    const HELD = "H".repeat(43);
+    const GONE = "G".repeat(43);
+    const unique = (processId: string, name: string) => ({ ...meta(processId, "ASSET"), assetClass: "unique" as const, denomination: 0, name });
+    const storage = createFakeStorage();
+    await peerSettings(storage);
+    for (const [id, name] of [[CACHED, "Cached POMP"], [HELD, "Held POMP"], [GONE, "Gone POMP"]] as const) {
+      await storage.set(`local:tokenMetadata:${id}`, unique(id, name));
+    }
+    await storage.set(`local:collectibles:${WALLET}`, {
+      savedAt: Date.now(),
+      collectibles: [{ id: CACHED, name: "Cached POMP", ticker: "ASSET", imageUrl: `https://arweave.net/${CACHED}` }],
+    });
+    const sender = "U".repeat(43);
+    const receipt = (id: string, target: string) => ({
+      cursor: id,
+      node: {
+        id,
+        owner: { address: sender },
+        recipient: target,
+        quantity: { winston: "1" },
+        tags: [
+          { name: "action", value: "transfer" },
+          { name: "recipient", value: WALLET },
+          { name: "quantity", value: "1" },
+        ],
+        block: { timestamp: 10 },
+      },
+    });
+    globalThis.fetch = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes("/now/as/balance")) return new Response(url.includes(HELD) ? "1" : "0");
+      if (url.includes("/slot/current")) return new Response("1");
+      const body = String(init?.body ?? "");
+      const edges = body.includes("values: $address") ? [receipt("r-cached", CACHED), receipt("r-held", HELD), receipt("r-gone", GONE)] : [];
+      return { ok: true, status: 200, json: async () => ({ data: { transactions: { edges } } }) };
+    }) as unknown as typeof fetch;
+
+    const page = await new ReadsHandler(storage, undefined, noDiscovery).getActivity({ address: WALLET });
+
+    expect(page.entries.find((e) => e.txId === "r-cached")).toEqual({
+      txId: "r-cached",
+      type: "receive",
+      status: "confirmed",
+      address: sender,
+      amount: null,
+      tags: expect.any(Array),
+      timestamp: 10_000,
+      collectible: { id: CACHED, name: "Cached POMP", imageUrl: `https://arweave.net/${CACHED}` },
+    });
+    expect(page.entries.find((e) => e.txId === "r-held")).toMatchObject({ type: "receive", amount: null, collectible: { id: HELD, name: "Held POMP" } });
+    expect(page.entries.find((e) => e.txId === "r-gone")).toBeUndefined();
+    // HELD arrived after the cached list was saved, so the next read rediscovers.
+    expect(await storage.get(`local:collectibles:${WALLET}`)).toMatchObject({ savedAt: 0 });
   });
 });
 

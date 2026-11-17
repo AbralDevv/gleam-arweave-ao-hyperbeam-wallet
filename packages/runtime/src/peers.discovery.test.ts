@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
-import { COMMUNITY_HYPERBEAM_PEER_URLS, type NetworkSettings, type StoragePort } from "@gleam/core";
-import { DISCOVERED_PEERS_KEY, DISMISSED_PEERS_KEY, mergeDiscoveredPeers, refreshDiscoveredPeersIfDue, saveNetworkSettings } from "./peers";
+import { COMMUNITY_HYPERBEAM_PEER_URLS, L1_TOKEN_NODE_URLS, type NetworkSettings, type StoragePort } from "@gleam/core";
+import {
+  DISCOVERED_PEERS_KEY,
+  DISMISSED_PEERS_KEY,
+  mergeDiscoveredPeers,
+  readL1NodeUrls,
+  refreshDiscoveredPeersIfDue,
+  saveNetworkSettings,
+} from "./peers";
 
 function createFakeStorage(): StoragePort & { store: Map<string, unknown> } {
   const store = new Map<string, unknown>();
@@ -27,9 +34,13 @@ const SETTINGS: NetworkSettings = {
   activePeerUrl: "https://mine.test",
 };
 
-function graphqlFetch(urls: string[]) {
+/** Location records for `urls`; of those, `l1` answer the canary's slot. */
+function graphqlFetch(urls: string[], l1: string[] = []) {
   return vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
+    if (url.endsWith("/slot/current")) {
+      return l1.some((host) => url.startsWith(`${host}/`)) ? new Response("1509") : new Response("<html></html>");
+    }
     if (url.endsWith("/graphql")) {
       const edges = urls.map((peer, index) => ({
         cursor: String(index),
@@ -102,7 +113,57 @@ describe("refreshDiscoveredPeersIfDue", () => {
 
     await refreshDiscoveredPeersIfDue(storage, async () => "https://gw.test", graphqlFetch(["https://b.test"]), () => DAY + 1);
 
-    expect(storage.store.get(DISCOVERED_PEERS_KEY)).toEqual({ at: DAY + 1, urls: ["https://b.test"] });
+    expect(storage.store.get(DISCOVERED_PEERS_KEY)).toEqual({ at: DAY + 1, urls: ["https://b.test"], l1Urls: [], l1Down: [] });
+  });
+
+  it("stores the peers that serve L1 tokens, and reads them after the shipped nodes", async () => {
+    const storage = createFakeStorage();
+    const community = COMMUNITY_HYPERBEAM_PEER_URLS.find((url) => !L1_TOKEN_NODE_URLS.includes(url))!;
+
+    await refreshDiscoveredPeersIfDue(
+      storage,
+      async () => "https://gw.test",
+      graphqlFetch(["https://b.test", "https://c.test"], [...L1_TOKEN_NODE_URLS, "https://c.test", community]),
+      () => DAY + 1,
+    );
+
+    expect(storage.store.get(DISCOVERED_PEERS_KEY)).toMatchObject({ l1Urls: [community, "https://c.test"], l1Down: [] });
+    expect(await readL1NodeUrls(storage)).toEqual([...L1_TOKEN_NODE_URLS, community, "https://c.test"]);
+  });
+
+  it("skips a shipped node that failed the probe until it passes again", async () => {
+    const storage = createFakeStorage();
+    const [dead, ...alive] = L1_TOKEN_NODE_URLS;
+
+    await refreshDiscoveredPeersIfDue(storage, async () => "https://gw.test", graphqlFetch([], alive), () => DAY + 1);
+    expect(storage.store.get(DISCOVERED_PEERS_KEY)).toMatchObject({ l1Down: [dead] });
+    expect(await readL1NodeUrls(storage)).toEqual(alive);
+
+    await refreshDiscoveredPeersIfDue(storage, async () => "https://gw.test", graphqlFetch([], [...L1_TOKEN_NODE_URLS]), () => 2 * DAY + 2);
+    expect(await readL1NodeUrls(storage)).toEqual([...L1_TOKEN_NODE_URLS]);
+  });
+
+  it("keeps the last probe's answer when nothing passes, the shipped nodes included", async () => {
+    const storage = createFakeStorage();
+    const [dead] = L1_TOKEN_NODE_URLS;
+    await storage.set(DISCOVERED_PEERS_KEY, { at: 0, urls: ["https://a.test"], l1Urls: ["https://a.test"], l1Down: [dead] });
+
+    await refreshDiscoveredPeersIfDue(storage, async () => "https://gw.test", graphqlFetch(["https://b.test"]), () => DAY + 1);
+
+    expect(storage.store.get(DISCOVERED_PEERS_KEY)).toEqual({ at: DAY + 1, urls: ["https://b.test"], l1Urls: ["https://a.test"], l1Down: [dead] });
+  });
+
+  it("falls back to every shipped node when all were down and none was found", async () => {
+    const storage = createFakeStorage();
+    await storage.set(DISCOVERED_PEERS_KEY, { at: 0, urls: [], l1Urls: [], l1Down: [...L1_TOKEN_NODE_URLS] });
+    expect(await readL1NodeUrls(storage)).toEqual([...L1_TOKEN_NODE_URLS]);
+  });
+
+  it("reads only the shipped nodes before any discovery, and skips a stored value that isn't an https URL", async () => {
+    const storage = createFakeStorage();
+    expect(await readL1NodeUrls(storage)).toEqual([...L1_TOKEN_NODE_URLS]);
+    await storage.set(DISCOVERED_PEERS_KEY, { at: 0, urls: [], l1Urls: ["http://plain.test", 7, "https://ok.test"] });
+    expect(await readL1NodeUrls(storage)).toEqual([...L1_TOKEN_NODE_URLS, "https://ok.test"]);
   });
 
   it("keeps the old list when discovery finds nothing", async () => {

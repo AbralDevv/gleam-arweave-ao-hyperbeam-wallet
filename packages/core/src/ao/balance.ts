@@ -130,6 +130,8 @@ export interface ReadTokenBalanceOptions {
   fetchImpl?: typeof fetch;
   /** Names the token in the error, e.g. its ticker. */
   label?: string;
+  /** Nodes an L1 token is read from besides the gateway; `L1_TOKEN_NODE_URLS` by default. */
+  l1NodeUrls?: readonly string[];
 }
 
 /**
@@ -146,7 +148,7 @@ export interface ReadTokenBalanceOptions {
 export async function readTokenBalance(options: ReadTokenBalanceOptions): Promise<string> {
   const { processId, address, transport, gatewayUrl, peerUrl, label } = options;
   const fetchImpl = options.fetchImpl ?? fetch;
-  if (transport === "l1") return readL1Balance(processId, address, gatewayUrl, peerUrl, fetchImpl, label);
+  if (transport === "l1") return readL1Balance(processId, address, gatewayUrl, peerUrl, fetchImpl, label, options.l1NodeUrls);
   const failures: string[] = [];
   if (peerUrl !== null) {
     try {
@@ -166,9 +168,12 @@ export async function readTokenBalance(options: ReadTokenBalanceOptions): Promis
 
 /**
  * The balance of an `arweave-scheduler@1.0` process, from its `now/as/balance`
- * path. Tries the gateway's HyperBEAM node, then `L1_TOKEN_NODE_URLS`, then
+ * path. Tries the gateway's HyperBEAM node, then `l1NodeUrls`, then
  * the peer; legacy-AO peers such as state.forward.computer answer 403 or 500
- * for these processes. The first number wins.
+ * for these processes. The first number wins, asking first whichever host
+ * has scheduled the most messages for the process: each node picks up L1
+ * transfers on its own, and one that hasn't yet answers the old balance
+ * with a 200. arweave.net has lagged a transfer by many blocks.
  *
  * These processes keep balances in a trie, so `compute/balances/{address}`
  * answers 404 for every address, holders included. `now/as/balance` answers
@@ -185,8 +190,13 @@ export async function readL1Balance(
   peerUrl: string | null,
   fetchImpl: typeof fetch = fetch,
   label?: string,
+  l1NodeUrls: readonly string[] = L1_TOKEN_NODE_URLS,
 ): Promise<string> {
-  const hosts = [...new Set([gatewayUrl, ...L1_TOKEN_NODE_URLS, peerUrl].filter((url): url is string => url !== null).map(trimTrailingSlash))];
+  const hosts = await furthestAheadFirst(
+    processId,
+    [...new Set([gatewayUrl, ...l1NodeUrls, peerUrl].filter((url): url is string => url !== null).map(trimTrailingSlash))],
+    fetchImpl,
+  );
   const failures: string[] = [];
   for (const host of hosts) {
     try {
@@ -204,6 +214,35 @@ export async function readL1Balance(
     }
   }
   throw balanceReadError(label, failures);
+}
+
+/**
+ * Every read waits on the slowest host's slot, so a host that hangs is
+ * cut off here rather than at the balance read's own timeout.
+ */
+const SLOT_TIMEOUT_MS = 1_500;
+
+/**
+ * `hosts` ordered by the slot each has reached for `processId`, highest
+ * first. A host that gives no slot in time keeps its place after those
+ * that do, so with no slots at all the order is unchanged.
+ */
+async function furthestAheadFirst(processId: string, hosts: string[], fetchImpl: typeof fetch): Promise<string[]> {
+  const slots = await Promise.all(
+    hosts.map(async (host) => {
+      try {
+        const response = await fetchImpl(`${host}/${processId}~process@1.0/slot/current`, { signal: AbortSignal.timeout(SLOT_TIMEOUT_MS) });
+        const text = response.ok ? (await response.text()).trim() : "";
+        return /^\d+$/.test(text) ? BigInt(text) : -1n;
+      } catch {
+        return -1n;
+      }
+    }),
+  );
+  return hosts
+    .map((host, index) => ({ host, slot: slots[index]!, index }))
+    .sort((a, b) => (a.slot === b.slot ? a.index - b.index : a.slot > b.slot ? -1 : 1))
+    .map(({ host }) => host);
 }
 
 function balanceReadError(label: string | undefined, failures: string[]): Error {

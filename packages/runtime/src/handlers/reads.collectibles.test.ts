@@ -84,11 +84,34 @@ describe("ReadsHandler: getCollectibles", () => {
     await expect(new ReadsHandler(createFakeStorage()).getCollectibles({ address: ADDRESS })).rejects.toThrow();
   });
 
+  it("rediscovers once the gateway or peer changes, inside the TTL", async () => {
+    const fn = stubNetwork();
+    const storage = createFakeStorage();
+    const reads = new ReadsHandler(storage);
+    await reads.getCollectibles({ address: ADDRESS });
+    const calls = fn.mock.calls.length;
+
+    await storage.set("local:networkSettings", { gatewayUrl: "https://ar-io.dev", peers: [], activePeerUrl: "https://push.forward.computer" });
+    await reads.getCollectibles({ address: ADDRESS });
+
+    expect(fn.mock.calls.length).toBeGreaterThan(calls);
+  });
+
+  it("keeps a collectible with a send still pending off a rediscovered list", async () => {
+    stubNetwork();
+    const storage = createFakeStorage();
+    await storage.set(`local:activityLog:${ADDRESS}`, [
+      { txId: "t", type: "send", status: "pending", address: "R".repeat(43), amount: null, tags: [], timestamp: 1, collectible: { id: ASSET } },
+    ]);
+
+    await expect(new ReadsHandler(storage).getCollectibles({ address: ADDRESS })).resolves.toEqual([]);
+  });
+
   it("shares one discovery between concurrent calls", async () => {
     const fn = stubNetwork();
     const reads = new ReadsHandler(createFakeStorage());
     await Promise.all([reads.getCollectibles({ address: ADDRESS }), reads.getCollectibles({ address: ADDRESS })]);
-    const balanceReads = fn.mock.calls.filter(([u]) => String(u).includes("~process@1.0")).length;
+    const balanceReads = fn.mock.calls.filter(([u]) => String(u).includes("/now/as/balance")).length;
     expect(balanceReads).toBe(1);
   });
 });

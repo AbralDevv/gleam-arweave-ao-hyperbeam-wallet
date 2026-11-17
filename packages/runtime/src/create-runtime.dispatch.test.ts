@@ -177,7 +177,8 @@ describe("createRuntime", () => {
       await expect(pending).resolves.toMatchObject({ type: "BUNDLED" });
       const urls = vi.mocked(globalThis.fetch).mock.calls.map(([url]) => String(url));
       expect(urls).toContain(`${CUSTOM_BUNDLER}/tx`);
-      expect(urls.some((url) => url.startsWith(DEFAULT_BUNDLER_URL))).toBe(false);
+      // The default bundler is also an L1 node, which peer discovery probes.
+      expect(urls).not.toContain(`${DEFAULT_BUNDLER_URL}/tx`);
     });
 
     it("a dApp's sign of an L1 token transfer shows the token, recipient and amount it moves", async () => {

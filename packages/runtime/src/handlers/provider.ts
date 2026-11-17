@@ -336,7 +336,8 @@ export function createProviderHandlers(deps: ProviderDeps): ProviderHandlers {
           tags: transaction.tags,
         })
       : null;
-    const tokenTransfer = reading?.kind === "transfer" ? reading : null;
+    // A dApp's transfer that also sends AR shows as the plain transaction.
+    const tokenTransfer = reading?.kind === "transfer" && reading.value === "0" ? reading : null;
     const tokenMetadata =
       tokenTransfer && wallet ? await resolveTokenPreview(wallet.address, tokenTransfer.processId) : null;
     // A collectible's transfer of 1 shows as that collectible, as the

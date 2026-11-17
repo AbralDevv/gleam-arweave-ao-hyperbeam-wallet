@@ -58,6 +58,20 @@ describe("broadcastTransaction", () => {
     await expect(broadcastTransaction(GATEWAY, SIGNED, [0])).resolves.toMatchObject({ status: 503 });
   });
 
+  it("reads the reason out of a HyperBEAM JSON rejection", async () => {
+    globalThis.fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ body: "Transaction verification failed.", server: "Cowboy", status: 400 }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        }),
+    ) as unknown as typeof fetch;
+    await expect(broadcastTransaction(GATEWAY, SIGNED, [])).resolves.toEqual({
+      status: 400,
+      statusText: "Transaction verification failed.",
+    });
+  });
+
   it("reports the gateway's own answer when nothing accepts it", async () => {
     answers((host) => (host === GATEWAY ? 404 : 500));
     await expect(broadcastTransaction(GATEWAY, SIGNED, [0])).resolves.toEqual({ status: 404, statusText: "necessary-message-not-found" });

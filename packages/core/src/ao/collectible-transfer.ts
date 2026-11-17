@@ -16,15 +16,15 @@ export function collectibleTransferTags(recipient: string): Tag[] {
   return l1TransferTags(recipient, COLLECTIBLE_TRANSFER_QUANTITY);
 }
 
-/** The unsigned transaction that moves collectible `assetId` from `ownerB64Url` to `recipient`. */
+/** The unsigned transaction that moves collectible `assetId` from `ownerB64Url` to `recipient`; `fee` as in `prepareL1TokenTransfer`. */
 export async function prepareCollectibleTransfer(
   gatewayUrl: string,
   ownerB64Url: string,
   assetId: string,
   recipient: string,
-  reward: Winston,
+  fee: Winston,
 ): Promise<ArweaveTransactionJson> {
-  return prepareL1TokenTransfer(gatewayUrl, ownerB64Url, assetId, recipient, COLLECTIBLE_TRANSFER_QUANTITY, reward);
+  return prepareL1TokenTransfer(gatewayUrl, ownerB64Url, assetId, recipient, COLLECTIBLE_TRANSFER_QUANTITY, fee);
 }
 
 /**

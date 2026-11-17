@@ -8,7 +8,7 @@ import { queryActivityTransactions } from "@gleam/core/src/arweave/graphql.ts";
 import { getBalance as getArBalance } from "@gleam/core/src/arweave/balance.ts";
 import { signTransactionWithSigner, type ArweaveTransactionJson } from "@gleam/core/src/arweave/transaction.ts";
 import { assertCoversNetworkFee, prepareCollectibleTransfer } from "@gleam/core/src/ao/collectible-transfer.ts";
-import { prepareL1TokenTransfer } from "@gleam/core/src/ao/l1-transfer.ts";
+import { estimateL1TransferFee, prepareL1TokenTransfer } from "@gleam/core/src/ao/l1-transfer.ts";
 import {
   finishTransfer as finishAoTransfer,
   prepareTransfer as prepareAoTransfer,
@@ -200,8 +200,8 @@ export class TransferHandler {
     if (req.token !== null) {
       if ((await this.transportOf(req)) === "mu") return { fee: null };
       // An L1 token transfer costs an AR network reward, like a collectible send.
-      const [{ fee }, balance] = await Promise.all([
-        estimateFee(settings.gatewayUrl, req.token),
+      const [fee, balance] = await Promise.all([
+        estimateL1TransferFee(settings.gatewayUrl, req.token),
         getArBalance(wallet.address, settings.gatewayUrl),
       ]);
       assertCoversNetworkFee(balance, fee);
@@ -248,15 +248,16 @@ export class TransferHandler {
 
   /**
    * The review step's quote for sending a collectible: the AR network
-   * reward for a data-less transaction to the asset process. Fails early
+   * reward for a data-less transaction to the asset process, plus the
+   * winston a process with no AR needs (`estimateL1TransferFee`). Fails early
    * when the wallet's AR can't pay it.
    */
   async estimateCollectibleSend(req: CollectibleSendDraft): Promise<TransferFeeQuote> {
     const settings = await this.loadNetworkSettings();
     const wallet = await this.loadWallet(req.walletId);
     refuseCollectibleSend(wallet.address, req.recipient, req.collectible.id);
-    const [{ fee }, balance] = await Promise.all([
-      estimateFee(settings.gatewayUrl, req.collectible.id),
+    const [fee, balance] = await Promise.all([
+      estimateL1TransferFee(settings.gatewayUrl, req.collectible.id),
       getArBalance(wallet.address, settings.gatewayUrl),
     ]);
     assertCoversNetworkFee(balance, fee);
@@ -293,7 +294,7 @@ export class TransferHandler {
       prepareCollectibleTransfer(settings.gatewayUrl, ownerB64Url, collectible.id, req.recipient, approvedFee(req)),
       getArBalance(wallet.address, settings.gatewayUrl),
     ]);
-    assertCoversNetworkFee(balance, transaction.reward);
+    assertCoversNetworkFee(balance, approvedFee(req));
     return transaction;
   }
 
@@ -306,7 +307,7 @@ export class TransferHandler {
       prepareL1TokenTransfer(settings.gatewayUrl, ownerB64Url, req.token, req.recipient, req.amount, approvedFee(req)),
       getArBalance(wallet.address, settings.gatewayUrl),
     ]);
-    assertCoversNetworkFee(balance, transaction.reward);
+    assertCoversNetworkFee(balance, approvedFee(req));
     return transaction;
   }
 

@@ -61,14 +61,15 @@ let storage: StoragePort;
 let wallet: Wallet;
 let ownerB64Url: string;
 
-/** A gateway with `balance` winston for every wallet; records each POSTed transaction. */
-function stubGateway(balance: string): Array<Record<string, unknown>> {
+/** A gateway with `balance` winston for every wallet but the asset; records each POSTed transaction. */
+function stubGateway(balance: string, assetBalance = "82"): Array<Record<string, unknown>> {
   const posted: Array<Record<string, unknown>> = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = String(input instanceof Request ? input.url : input);
     if (url.includes("/graphql")) return Response.json({ data: { transactions: { edges: [] } } });
     if (url.includes("tx_anchor")) return new Response("b".repeat(64));
     if (url.includes("/price/")) return new Response(REWARD);
+    if (url.includes(`/wallet/${ASSET}/balance`)) return new Response(assetBalance);
     if (url.includes("/balance")) return new Response(balance);
     if (url.endsWith("/tx") && init?.method === "POST") {
       posted.push(JSON.parse(String(init.body)) as Record<string, unknown>);
@@ -189,6 +190,17 @@ describe("TransferHandler: sendCollectible", () => {
       { name: "quantity", value: "1" },
     ]);
     expect(forgetCollectible).toHaveBeenCalledWith({ address: wallet.address, id: ASSET });
+  });
+
+  it("sends an asset that holds no AR the winston the network needs, out of the approved fee", async () => {
+    const posted = stubGateway("1000000000", "0");
+    const handler = new TransferHandler(storage, keySession);
+    const { fee } = await handler.estimateCollectibleSend({ walletId: WALLET_ID, recipient: RECIPIENT, collectible: COLLECTIBLE });
+    expect(fee).toBe("654322");
+
+    await handler.sendCollectible({ walletId: WALLET_ID, recipient: RECIPIENT, collectible: COLLECTIBLE, fee: fee! });
+
+    expect(posted[0]).toMatchObject({ target: ASSET, quantity: "1", reward: REWARD });
   });
 
   it("writes a pending activity entry that carries the collectible instead of an amount", async () => {

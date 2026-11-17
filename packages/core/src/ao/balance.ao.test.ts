@@ -123,7 +123,31 @@ describe("readTokenBalance", () => {
   it("reads an L1 token from the gateway's HyperBEAM before the peer", async () => {
     const { fetchImpl, calls } = routed({ [GATEWAY]: () => new Response("1000000000000") });
     await expect(readTokenBalance({ ...l1, fetchImpl })).resolves.toBe("1000000000000");
-    expect(calls).toEqual([`${GATEWAY}/${PID}~process@1.0/now/as/balance?as=execution&balance=${ADDRESS}`]);
+    expect(calls.filter((url) => url.includes("/now/as/balance"))).toEqual([`${GATEWAY}/${PID}~process@1.0/now/as/balance?as=execution&balance=${ADDRESS}`]);
+  });
+
+  it("reads from the host that has scheduled the most for the process, not a lagging gateway", async () => {
+    const { fetchImpl, calls } = routed({
+      [`${GATEWAY}/${PID}~process@1.0/slot/current`]: () => new Response("0"),
+      [`${NEO}/${PID}~process@1.0/slot/current`]: () => new Response("1"),
+      [GATEWAY]: () => new Response("1"),
+      [NEO]: () => new Response("0"),
+    });
+    await expect(readTokenBalance({ ...l1, fetchImpl })).resolves.toBe("0");
+    expect(calls.filter((url) => url.includes("/now/as/balance"))).toEqual([`${NEO}/${PID}~process@1.0/now/as/balance?as=execution&balance=${ADDRESS}`]);
+  });
+
+  it("stops waiting for a host that hangs on its slot", async () => {
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith(NEO) && url.endsWith("/slot/current")) {
+        return new Promise<Response>((_, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError"))));
+      }
+      return new Response(url.endsWith("/slot/current") ? "3" : "42");
+    }) as typeof fetch;
+    const started = Date.now();
+    await expect(readTokenBalance({ ...l1, fetchImpl })).resolves.toBe("42");
+    expect(Date.now() - started).toBeLessThan(3_000);
   });
 
   it("keeps a balance past Number.MAX_SAFE_INTEGER exact", async () => {
@@ -176,7 +200,7 @@ describe("readTokenBalance", () => {
     await expect(
       readTokenBalance({ processId: PID, address: ADDRESS, transport: "l1", gatewayUrl: GATEWAY, peerUrl: SFC, fetchImpl, label: "FODDER" }),
     ).rejects.toThrow(
-      "Couldn't read your FODDER balance. Tried arweave.net (HTTP 500), alpha.neo.zephyrdev.xyz (HTTP 500), charlie.neo2.zephyrdev.xyz (HTTP 500), state.forward.computer (HTTP 403).",
+      "Couldn't read your FODDER balance. Tried arweave.net (HTTP 500), alpha.neo.zephyrdev.xyz (HTTP 500), charlie.neo2.zephyrdev.xyz (HTTP 500), hb.arweave.net (HTTP 500), up.arweave.net (HTTP 500), state.forward.computer (HTTP 403).",
     );
   });
 });
