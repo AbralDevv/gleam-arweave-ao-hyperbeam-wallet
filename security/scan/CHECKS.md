@@ -39,6 +39,16 @@ Some of the classes here are adapted from Cloudflare's
   does it check before it answers?
 - When a crypto call throws, what does the caller do? Is there any path
   that falls back to a weaker method or to no encryption at all?
+- Is a keyfile download's history row erased on every path it can
+  settle: the save itself, a worker stopped mid-download, and a save
+  dialog left open past the settle timeout (`adapters/downloads.ts`,
+  `watchDownloadHistory`)?
+- Is a mobile keyfile export's cache folder swept on the next start when
+  the app was killed while the share sheet was open
+  (`adapters/file-saver.ts`)?
+- Does a backup key wrapped under the vault password reuse only envelope
+  parameters that already meet the current cost
+  (`handlers/backup.ts`, `vaultEncryptOptions`)?
 
 ### Locking (tier 1)
 
