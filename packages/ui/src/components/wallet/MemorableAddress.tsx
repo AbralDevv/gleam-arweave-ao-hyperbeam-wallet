@@ -17,6 +17,8 @@ export interface MemorableAddressProps {
   diffAgainst?: string;
   /** `positive` marks the differences on the known side of a lookalike pair, so only the suspect address is red. */
   diffTone?: "warning" | "positive";
+  /** Six chunks a row where seven don't fit, so an address beside a label still takes two rows. */
+  sixWhereNarrow?: boolean;
   className?: string;
 }
 
@@ -39,6 +41,7 @@ export function MemorableAddress({
   trailing,
   diffAgainst,
   diffTone = "warning",
+  sixWhereNarrow = false,
   className,
 }: MemorableAddressProps) {
   const confirm = tone === "confirm";
@@ -66,7 +69,12 @@ export function MemorableAddress({
       <span className={cn("@container flex min-w-0 flex-1 font-mono [justify-content:inherit]", confirm ? "text-[12.5px]" : "text-label")}>
         <span
           translate="no"
-          className="grid min-w-0 grid-cols-[repeat(4,max-content)] text-left leading-[1.75] @[33ch]:grid-cols-[repeat(7,max-content)] phone:@[31.6ch]:grid-cols-[repeat(7,max-content)]"
+          className={cn(
+            "grid min-w-0 grid-cols-[repeat(4,max-content)] text-left leading-[1.75]",
+            // Six chunks are 28.2ch, or 27ch with the phone's padding.
+            sixWhereNarrow && "gap-y-[3px] @[28.2ch]:grid-cols-[repeat(6,max-content)] phone:@[27.1ch]:grid-cols-[repeat(6,max-content)]",
+            "@[33ch]:grid-cols-[repeat(7,max-content)] phone:@[31.6ch]:grid-cols-[repeat(7,max-content)]",
+          )}
         >
           {chunks.map((chunk) => (
             <span
