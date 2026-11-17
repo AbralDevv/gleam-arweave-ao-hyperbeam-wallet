@@ -13,6 +13,7 @@ import {
   isUnknownScale,
   recipientsOf,
   showsWarning,
+  totalFiatText,
   transferRequestFromDevice,
   warningReasons,
   transferRequestFromPreview,
@@ -347,5 +348,26 @@ describe("fiat values", () => {
 
   it("leaves the fee unpriced when the display currency is AR", () => {
     expect(feeFiatText("42855127", { ...context, currency: "AR" })).toBeUndefined();
+  });
+
+  describe("totalFiatText", () => {
+    const priced = request({ amount: "2000000000000" }).transfers[0]!;
+
+    it("sums every priced transfer", () => {
+      expect(totalFiatText(context, [priced, priced])).toBe("≈ $20.00");
+    });
+
+    it("returns undefined when any transfer is unpriced", () => {
+      const unpricedToken = request({ token: P, ticker: "X", denomination: 12, amount: "2000000000000" }).transfers[0]!;
+      expect(totalFiatText(context, [priced, unpricedToken])).toBeUndefined();
+      const unknownDenomination = request({ denomination: null }).transfers[0]!;
+      expect(totalFiatText(context, [priced, unknownDenomination])).toBeUndefined();
+      const collectible = request({ collectible: { id: P } }).transfers[0]!;
+      expect(totalFiatText(context, [priced, collectible])).toBeUndefined();
+    });
+
+    it("returns undefined with no display currency", () => {
+      expect(totalFiatText({ ...context, currency: undefined }, [priced])).toBeUndefined();
+    });
   });
 });
