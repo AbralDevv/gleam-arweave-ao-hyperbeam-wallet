@@ -68,6 +68,11 @@ Then check the common reasons a candidate fails:
 - The attacker could already do the same thing through a legitimate
   path, or the only one harmed is the attacker.
 - It is missing defence in depth with no attack it enables.
+- It claims a secret lingers where no one can read it: a value that is
+  never assigned or retained after the call is unreferenced, and
+  JavaScript has no API to read an unreferenced object from the heap.
+  Zeroization only stops a capture through something that retains the
+  value, so check what retains it before claiming it lingers.
 - It is a crash or an error with no security effect.
 - It is a vulnerable dependency whose affected code Gleam doesn't reach.
 

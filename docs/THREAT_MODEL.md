@@ -315,9 +315,6 @@ count as a finding.
     and `events` are polyfilled). A production build contains no
     elliptic code: its curve constants, error strings and `HmacDRBG` are
     absent from `.output/chrome-mv3`.
-  - `deepmerge` 4.3.1 (GHSA-gcqx-w48m-w2h4): it comes only through
-    `wxt` → `web-ext` → `addons-linter`, a development tool, and isn't in
-    the build. Its ignore runs until 2027-04-28.
   - `minimatch` (GHSA-g3hv-75wg-m249): fixed only in 11.0.1, a major that
     `eslint` and `typescript-estree` don't accept. It reaches only lint and
     `web-ext` tooling, which match the repository's own globs, and isn't
@@ -326,6 +323,12 @@ count as a finding.
     `rimraf` doesn't accept. It reaches only `@capacitor/cli` at build
     time, which passes `rimraf` no `AbortSignal`, and isn't in the build.
     Its ignore runs until 2027-01-31.
+  - `picomatch` 2.3.2 and 4.0.7 (GHSA-fc5q-39xc-vjpf): no fixed
+    release. It reaches only build tooling
+    (`@aklinker1/rollup-plugin-visualizer`, `@rollup/pluginutils`,
+    `tinyglobby` → `fdir` via vite, `dependency-cruiser`), which match
+    the repository's own globs, and isn't in the build: a production
+    build contains no `picomatch` strings.
 
   *Still a finding if,* by any path, `.output/chrome-mv3` contains code
   from any of these packages, or shipped code signs or verifies with ECDSA or

@@ -128,6 +128,61 @@ describe("BackupHandler: set up", () => {
     expect((await backup.status()).provider).toBeNull();
     await expect(backup.setUp({ password: PASSWORD })).rejects.toThrow(userErrorMessage("backupUnavailable"));
   });
+
+  it("wraps the backup key at the current cost when the stored envelope is weaker", async () => {
+    // A wallet created under the weakest valid cost (the validation floor):
+    // the backup key must not inherit those params, or a stolen backup
+    // file would be far cheaper to attack offline than the wallet itself.
+    const storage = new InMemoryStorage();
+    const sessionKeys = new Keyring();
+    const keySession = createKeySession({ sessionKeys, storage });
+    const lifecycle = new WalletLifecycleHandler(storage, keySession, {
+      kdfParams: { memoryKiB: 8, iterations: 1, parallelism: 1 },
+    });
+    const backup = new BackupHandler({
+      storage,
+      sessionKeys,
+      cloudFile: new InMemoryCloudFile(new InMemoryCloudAccount()),
+      vault: lifecycle,
+      session: keySession,
+      now: () => 1_700_000_000_000,
+    });
+    await lifecycle.createWallet({ name: "Main", password: PASSWORD });
+    await lifecycle.unlockWallet({ password: PASSWORD });
+    await backup.setUp({ password: PASSWORD });
+    const stored = storage.entries.get(BACKUP_KEY) as {
+      wrapped: { memoryKiB: number; iterations: number; parallelism: number; salt: string };
+    };
+    expect(stored.wrapped).toMatchObject({ memoryKiB: 65_536, iterations: 5, parallelism: 1 });
+    const wallet = walletsOf({ storage } as Device)[0]!;
+    expect(stored.wrapped.salt).not.toBe(wallet.encryptedKeyfile!.salt);
+  });
+
+  it("still reuses a current envelope's salt and params", async () => {
+    // The single-derivation benefit must survive the floor: a wallet at
+    // the current cost keeps sharing one key derivation with the backup.
+    const storage = new InMemoryStorage();
+    const sessionKeys = new Keyring();
+    const keySession = createKeySession({ sessionKeys, storage });
+    const lifecycle = new WalletLifecycleHandler(storage, keySession);
+    const backup = new BackupHandler({
+      storage,
+      sessionKeys,
+      cloudFile: new InMemoryCloudFile(new InMemoryCloudAccount()),
+      vault: lifecycle,
+      session: keySession,
+      now: () => 1_700_000_000_000,
+    });
+    await lifecycle.createWallet({ name: "Main", password: PASSWORD });
+    await lifecycle.unlockWallet({ password: PASSWORD });
+    await backup.setUp({ password: PASSWORD });
+    const stored = storage.entries.get(BACKUP_KEY) as {
+      wrapped: { memoryKiB: number; iterations: number; parallelism: number; salt: string };
+    };
+    const wallet = walletsOf({ storage } as Device)[0]!;
+    expect(stored.wrapped).toMatchObject({ memoryKiB: 65_536, iterations: 5, parallelism: 1 });
+    expect(stored.wrapped.salt).toBe(wallet.encryptedKeyfile!.salt);
+  });
 });
 
 describe("BackupHandler: keeping up to date", () => {

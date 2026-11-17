@@ -39,6 +39,16 @@ Some of the classes here are adapted from Cloudflare's
   does it check before it answers?
 - When a crypto call throws, what does the caller do? Is there any path
   that falls back to a weaker method or to no encryption at all?
+- Is a keyfile download's history row erased on every path it can
+  settle: the save itself, a worker stopped mid-download, and a save
+  dialog left open past the settle timeout (`adapters/downloads.ts`,
+  `watchDownloadHistory`)?
+- Is a mobile keyfile export's cache folder swept on the next start when
+  the app was killed while the share sheet was open
+  (`adapters/file-saver.ts`)?
+- Does a backup key wrapped under the vault password reuse only envelope
+  parameters that already meet the current cost
+  (`handlers/backup.ts`, `vaultEncryptOptions`)?
 
 ### Locking (tier 1)
 
@@ -77,6 +87,9 @@ Some of the classes here are adapted from Cloudflare's
   value beyond 2^53?
 - Is the recipient or target validated as an Arweave address before
   signing? Can a data item's tags change who or what the item is for?
+- For batch methods, is there a count cap, or a total-size cap that
+  bounds the batch, and does the approval preview show the item count
+  and every item, so one transfer can't hide among many?
 
 ### Crypto (tiers 1 and 2)
 
@@ -131,6 +144,10 @@ Some of the classes here are adapted from Cloudflare's
 - Values that come from the network, such as token names, logos and
   decimals, are under a lying gateway's or AO unit's control. Can any
   of them change the amount or recipient the preview shows?
+- Does every page- or network-supplied string on an approval screen go
+  through `UntrustedText` (or an equivalent escape plus bidi
+  isolation)? For any render that doesn't, is there a proof its input
+  alphabet can't carry hidden or bidi characters?
 
 ### Hardware wallet signing
 
@@ -201,7 +218,9 @@ the check and the act?
 **Encoding and limits.** base64url versus base64, BigInt parsing, tag
 encoding, JSON depth and size. Do two parts of the code decode the same
 value differently? Is each size limit enforced before the expensive
-work, not after?
+work, not after? Do fetches of a peer's or gateway's response cap the
+body before `text()` or `json()` reads it, so a lying node can't make
+the service worker buffer an unbounded body?
 
 **Trusting stored data.** Data read back from `chrome.storage` is
 treated as already validated. Can a different code path, an older

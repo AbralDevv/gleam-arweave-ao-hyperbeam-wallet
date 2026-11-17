@@ -65,6 +65,29 @@ describe("discoverHyperBeamPeers", () => {
     }) as unknown as typeof fetch;
     await expect(discoverHyperBeamPeers({ gatewayUrl: "https://gw.test", fetchImpl })).resolves.toEqual([]);
   });
+
+  it("drops a node whose probe answer runs past the probe cap", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/graphql")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              transactions: {
+                pageInfo: { hasNextPage: false },
+                edges: [record("https://huge.test", "owner-a", 100), record("https://ok.test", "owner-b", 90)],
+              },
+            },
+          }),
+        );
+      }
+      if (new URL(url).origin === "https://huge.test") return new Response("x".repeat(1_000_000));
+      return new Response("operator-address");
+    }) as unknown as typeof fetch;
+    await expect(discoverHyperBeamPeers({ gatewayUrl: "https://gw.test", fetchImpl })).resolves.toEqual([
+      "https://ok.test",
+    ]);
+  });
 });
 
 describe("findL1TokenNodes", () => {
@@ -91,5 +114,32 @@ describe("findL1TokenNodes", () => {
     expect(nodes).toEqual(["https://l1.test", "https://also-l1.test"]);
     expect(calls).toContain(`https://l1.test/${L1_CANARY_PROCESS_ID}~process@1.0/slot/current`);
     expect(calls.filter((url) => url.startsWith("https://l1.test"))).toHaveLength(1);
+  });
+
+  it("drops a candidate whose slot answer runs past the probe cap", async () => {
+    const fetchImpl = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.startsWith("https://huge.test")) return new Response("1".repeat(1_000_000));
+      return new Response("1509");
+    }) as typeof fetch;
+    const nodes = await findL1TokenNodes({ candidates: ["https://huge.test", "https://l1.test"], fetchImpl });
+    expect(nodes).toEqual(["https://l1.test"]);
+  });
+
+  it("stops reading a probe response once it passes the cap", async () => {
+    let pulled = 0;
+    const chunk = new TextEncoder().encode("1".repeat(1024));
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulled += chunk.byteLength;
+        controller.enqueue(chunk);
+      },
+    });
+    const fetchImpl = (async () => new Response(body)) as typeof fetch;
+    const nodes = await findL1TokenNodes({ candidates: ["https://huge.test"], fetchImpl });
+    expect(nodes).toEqual([]);
+    // The stream never ends, so any bound proves the read was cancelled
+    // early; the cap is 4 KiB and the chunks are 1 KiB each.
+    expect(pulled).toBeLessThanOrEqual(16 * 1024);
   });
 });

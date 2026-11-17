@@ -79,4 +79,16 @@ describe("tierTags", () => {
     const placed = [tiers.headline?.tag, tiers.headline?.quantity, ...tiers.addresses, ...tiers.app, ...tiers.protocol].filter(Boolean);
     expect(placed).toHaveLength(tags.length);
   });
+
+  it("never headlines a Quantity name carrying hidden characters", () => {
+    const tiers = tierTags([tag("Action", "Vote"), tag("Quantity\u202E", "5"), tag("Quantity\u200B", "7")]);
+    expect(tiers.headline).toEqual({ tag: tag("Action", "Vote"), quantity: null });
+    expect(tiers.app).toEqual([tag("Quantity\u202E", "5"), tag("Quantity\u200B", "7")]);
+  });
+
+  it("headlines every case variant of Quantity", () => {
+    for (const name of ["Quantity", "quantity", "QUANTITY", "QuAnTiTy"]) {
+      expect(tierTags([tag("Action", "Vote"), tag(name, "5")]).headline?.quantity).toEqual(tag(name, "5"));
+    }
+  });
 });
