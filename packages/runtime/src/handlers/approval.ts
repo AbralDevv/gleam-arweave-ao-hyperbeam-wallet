@@ -585,7 +585,9 @@ const TIMED_OUT = userErrorMessage("approvalTimedOut");
 /** How soon a timeout looks again at a request that was being resolved when it fired. */
 const RESOLVING_RECHECK_MS = 5_000;
 
-const textDecoder = new TextDecoder();
+// A leading byte order mark is signed like any other character, so it is
+// kept, and shown where the text is shown.
+const textDecoder = new TextDecoder("utf-8", { ignoreBOM: true });
 
 function previewCollectibleId(preview: ApprovalRequest["preview"], index = 0): string | null {
   if ("collectible" in preview && preview.collectible) return preview.collectible.id;
@@ -741,7 +743,7 @@ const DATA_PREVIEW_CHARS = 4096;
 
 function decodeText(payload: Uint8Array): string | null {
   try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(payload);
+    return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(payload);
   } catch {
     return null;
   }

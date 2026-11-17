@@ -1041,6 +1041,22 @@ describe("ApprovalHandler: signing approval preview + unlocked-session gate", ()
     await expect(pending).rejects.toThrow();
   });
 
+  it("keeps a leading byte order mark in the text it shows", async () => {
+    const pending = handler.requestApproval({
+      kind: "sign",
+      origin: "https://bazar.arweave.net",
+      walletId: WALLET_ID,
+      payload: Uint8Array.from([0xef, 0xbb, 0xbf, 0x41]),
+      tags: [],
+    });
+    pending.catch(() => {});
+    await vi.waitFor(() => expect(presenter.presented.length).toBe(1));
+    const requestId = presenter.presented[0]!;
+    await expect(handler.getApprovalData({ requestId })).resolves.toEqual({ text: "\uFEFFA" });
+    await handler.resolveApproval({ requestId, approved: false });
+    await expect(pending).rejects.toThrow();
+  });
+
   it("getApproval returns the exact pending ApprovalRequest for a requestId", async () => {
     const pending = handler.requestApproval({
       kind: "sign",
