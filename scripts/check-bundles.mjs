@@ -270,7 +270,6 @@ export const BUNDLE_PACKAGES = {
     "react-dom",
     "scheduler",
     "tailwind-merge",
-    "tslib",
     "vite-plugin-node-polyfills",
     "wxt",
   ],
