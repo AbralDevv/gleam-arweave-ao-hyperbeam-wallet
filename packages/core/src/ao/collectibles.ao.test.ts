@@ -32,12 +32,18 @@ describe("classifyAsset", () => {
     expect(classifyAsset(tags({ ...BASE, "hint-ui-style": "fungible", denomination: "12" }))).toBe("fungible");
   });
 
-  it("rejects non-token processes, wrong supply, wrong ticker and untyped tokens", () => {
+  it("accepts a unique with any ticker, as a published permaweb app's APP", () => {
+    expect(classifyAsset(tags({ ...NFT, ticker: "APP" }))).toBe("unique");
+    const rest: Record<string, string> = { ...NFT };
+    delete rest.ticker;
+    expect(classifyAsset(tags(rest))).toBe("unique");
+  });
+
+  it("rejects non-token processes, wrong supply and untyped tokens", () => {
     expect(classifyAsset(tags({ ...NFT, "execution-device": "lua@5.3a" }))).toBeNull();
     expect(classifyAsset(tags({ ...NFT, device: "other" }))).toBeNull();
     expect(classifyAsset(tags({ ...NFT, "total-supply": "2" }))).toBeNull();
     expect(classifyAsset(tags({ ...NFT, denomination: "2" }))).toBeNull();
-    expect(classifyAsset(tags({ ...NFT, ticker: "FOO" }))).toBeNull();
     expect(classifyAsset(tags(BASE))).toBeNull();
   });
 });
