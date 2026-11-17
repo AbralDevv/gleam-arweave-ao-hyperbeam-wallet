@@ -145,15 +145,46 @@ describe("SendCollectibleView", () => {
   it("shows the fee error when the wallet's AR can't cover it", async () => {
     setup({
       estimate: () => {
-        throw new Error("Sending needs about 0.000000654321 AR for the network fee.");
+        throw new Error("You need at least 0.000000654321 AR for the network fee.");
       },
     });
 
     enterRecipient(RECIPIENT);
     fireEvent.click(screen.getByRole("button", { name: "Review" }));
 
-    expect(await screen.findByText("Sending needs about 0.000000654321 AR for the network fee.")).toBeTruthy();
+    expect(await screen.findByText("You need at least 0.000000654321 AR for the network fee.")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Send" })).toBeNull();
+  });
+
+  it("says on compose that the fee isn't covered, and holds Review", async () => {
+    setup({
+      estimate: () => {
+        throw new Error("You need at least 0.000000654321 AR for the network fee.");
+      },
+    });
+
+    enterRecipient(RECIPIENT);
+
+    expect(await screen.findByText("You need at least 0.000000654321 AR for the network fee.")).toBeTruthy();
+    expect(screen.queryByText("Network fee")).toBeNull();
+    expect((screen.getByRole("button", { name: "Review" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("keeps Review open after a quote failure that a retry can clear, and shows the error once", async () => {
+    const { send } = setup({
+      estimate: () => {
+        throw new Error("Gateway down");
+      },
+    });
+
+    enterRecipient(RECIPIENT);
+    expect(await screen.findByText("Gateway down")).toBeTruthy();
+    const review = screen.getByRole("button", { name: "Review" }) as HTMLButtonElement;
+    expect(review.disabled).toBe(false);
+
+    fireEvent.click(review);
+    await waitFor(() => expect(send.mock.calls.filter(([m]) => m.type === "estimateCollectibleSend").length).toBe(2));
+    expect(await screen.findAllByText("Gateway down")).toHaveLength(1);
   });
 
   it("keeps the review step and shows the error when the send fails", async () => {

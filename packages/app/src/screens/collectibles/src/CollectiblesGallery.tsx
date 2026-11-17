@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Collectible } from "@gleam/core";
+import { collectibleKind, type Collectible } from "@gleam/core";
 import { CollectibleThumbnail, EmptyState, SkeletonTile } from "@gleam/ui/src/components/wallet/index.ts";
 import { cn } from "@gleam/ui/src/primitives/cn.ts";
 import { useT } from "../../../i18n";
@@ -11,6 +11,24 @@ export interface CollectiblesGalleryProps {
 }
 
 const SWIPE_PX = 40;
+
+type Translate = ReturnType<typeof useT>;
+
+/** What the tile says when it has no preview; images and videos have one. */
+export function collectibleKindLabel(t: Translate, contentType: string | undefined): string | undefined {
+  switch (collectibleKind(contentType)) {
+    case "audio":
+      return t("collectibles.kindAudio");
+    case "web":
+      return t("collectibles.kindWeb");
+    case "document":
+      return t("collectibles.kindDocument");
+    case "file":
+      return t("collectibles.kindFile");
+    default:
+      return undefined;
+  }
+}
 
 /**
  * The detail screen unmounts this view, so the piece being shown is kept
@@ -114,7 +132,13 @@ export function CollectiblesGallery({ items, loading, onOpen }: CollectiblesGall
                 position === index ? "opacity-100" : "opacity-45 hover:opacity-80",
               )}
             >
-              <CollectibleThumbnail name={item.name} imageUrl={item.imageUrl} decorative />
+              <CollectibleThumbnail
+                name={item.name}
+                imageUrl={item.imageUrl}
+                videoUrl={item.videoUrl}
+                kind={collectibleKind(item.contentType)}
+                decorative
+              />
             </button>
           ))}
         </div>
@@ -149,7 +173,17 @@ export function CollectiblesGallery({ items, loading, onOpen }: CollectiblesGall
         }}
         className="block w-full touch-pan-y rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
       >
-        <CollectibleThumbnail key={shown.id} name={shown.name} imageUrl={shown.imageUrl} decorative className="rounded-2xl" />
+        <CollectibleThumbnail
+          key={shown.id}
+          name={shown.name}
+          imageUrl={shown.imageUrl}
+          videoUrl={shown.videoUrl}
+          play
+          kind={collectibleKind(shown.contentType)}
+          kindLabel={collectibleKindLabel(t, shown.contentType)}
+          decorative
+          className="rounded-2xl"
+        />
       </button>
       <p className="truncate text-body font-medium text-foreground">{shown.name}</p>
     </div>

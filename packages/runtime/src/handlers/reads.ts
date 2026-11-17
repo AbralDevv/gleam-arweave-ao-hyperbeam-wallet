@@ -279,13 +279,19 @@ function isCollectiblesCache(value: unknown): value is CollectiblesCache {
     typeof candidate.savedAt === "number" &&
     (candidate.source === undefined || typeof candidate.source === "string") &&
     Array.isArray(candidate.collectibles) &&
-    candidate.collectibles.every(
-      (item) =>
-        item !== null &&
-        typeof item === "object" &&
-        typeof (item as Record<string, unknown>).id === "string" &&
-        typeof (item as Record<string, unknown>).name === "string",
-    )
+    candidate.collectibles.every(isCachedCollectible)
+  );
+}
+
+const OPTIONAL_COLLECTIBLE_STRINGS = ["contentType", "imageUrl", "videoUrl", "description", "collectionId", "collectionName"] as const;
+
+function isCachedCollectible(item: unknown): item is Collectible {
+  if (item === null || typeof item !== "object") return false;
+  const fields = item as Record<string, unknown>;
+  return (
+    typeof fields.id === "string" &&
+    typeof fields.name === "string" &&
+    OPTIONAL_COLLECTIBLE_STRINGS.every((key) => fields[key] === undefined || typeof fields[key] === "string")
   );
 }
 

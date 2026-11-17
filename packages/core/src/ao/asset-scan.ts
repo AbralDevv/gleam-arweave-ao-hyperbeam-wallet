@@ -55,8 +55,8 @@ export function tagMap(tags: Tag[]): Record<string, string> {
 
 /**
  * Classifies a process by its spawn tags. A "unique" is the NFT shape:
- * non-fungible style, denomination 0, supply 1 and the `ASSET` ticker.
- * Anything that isn't a token@1.0 process (or isn't tagged fungible or
+ * non-fungible style, denomination 0 and supply 1. The ticker is free:
+ * a permaweb app published as an atomic asset carries `APP`. Anything that isn't a token@1.0 process (or isn't tagged fungible or
  * unique) is rejected, so unrelated processes that merely received a
  * message never reach the balance check.
  */
@@ -64,7 +64,7 @@ export function classifyAsset(tags: Tag[]): AssetClass | null {
   const t = tagMap(tags);
   if (t.device !== "process@1.0" || t["execution-device"] !== "token@1.0") return null;
   const style = t["hint-ui-style"] ?? t["hint-style"] ?? t["asset-type"];
-  if (style === "non-fungible" && t.denomination === "0" && t["total-supply"] === "1" && t.ticker === "ASSET") {
+  if (style === "non-fungible" && t.denomination === "0" && t["total-supply"] === "1") {
     return "unique";
   }
   return style === "fungible" ? "fungible" : null;

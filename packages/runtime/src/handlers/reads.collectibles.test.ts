@@ -107,6 +107,22 @@ describe("ReadsHandler: getCollectibles", () => {
     await expect(new ReadsHandler(storage).getCollectibles({ address: ADDRESS })).resolves.toEqual([]);
   });
 
+  it("rediscovers rather than serve a cached collectible with a malformed field", async () => {
+    const fn = stubNetwork();
+    const storage = createFakeStorage();
+    const reads = new ReadsHandler(storage);
+    await reads.getCollectibles({ address: ADDRESS });
+    const key = `local:collectibles:${ADDRESS}`;
+    const cached = storage.store.get(key) as { collectibles: Array<Record<string, unknown>> };
+    storage.store.set(key, { ...cached, collectibles: [{ ...cached.collectibles[0], videoUrl: 5 }] });
+    const calls = fn.mock.calls.length;
+
+    const list = await reads.getCollectibles({ address: ADDRESS });
+
+    expect(fn.mock.calls.length).toBeGreaterThan(calls);
+    expect(list[0]).not.toHaveProperty("videoUrl");
+  });
+
   it("shares one discovery between concurrent calls", async () => {
     const fn = stubNetwork();
     const reads = new ReadsHandler(createFakeStorage());

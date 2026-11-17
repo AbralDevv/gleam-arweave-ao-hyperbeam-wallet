@@ -133,7 +133,7 @@ describe("TransferHandler: estimateCollectibleSend", () => {
     stubGateway("10");
     await expect(
       new TransferHandler(storage, keySession).estimateCollectibleSend({ walletId: WALLET_ID, recipient: RECIPIENT, collectible: COLLECTIBLE }),
-    ).rejects.toThrow("Sending needs about 0.000000654321 AR for the network fee.");
+    ).rejects.toThrow("You need at least 0.000000654321 AR for the network fee.");
   });
 
   it("refuses to send to the wallet's own address", async () => {
@@ -228,7 +228,7 @@ describe("TransferHandler: sendCollectible", () => {
     const posted = stubGateway("10");
     await expect(
       new TransferHandler(storage, keySession).sendCollectible({ walletId: WALLET_ID, recipient: RECIPIENT, collectible: COLLECTIBLE, fee: REWARD }),
-    ).rejects.toThrow(/Sending needs about .* AR for the network fee/);
+    ).rejects.toThrow(/You need at least .* AR for the network fee/);
     expect(posted).toHaveLength(0);
     expect(await storage.get(`local:activityLog:${wallet.address}`)).toBeNull();
   });

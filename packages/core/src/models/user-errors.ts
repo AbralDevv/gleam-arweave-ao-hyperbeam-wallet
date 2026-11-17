@@ -77,7 +77,7 @@ export const USER_ERRORS = {
   hardwareSigning: "This wallet signs on its device. Signing with a hardware wallet isn't supported yet.",
 
   noApprovedFee: "This send has no approved network fee. Try again.",
-  networkFeeNeeded: "Sending needs about {fee} AR for the network fee.",
+  networkFeeNeeded: "You need at least {fee} AR for the network fee.",
   recipientInvalid: 'Recipient must be an Arweave address (43 base64url characters), got "{recipient}".',
   transferRecipientInvalid: 'Transfer recipient must be an Arweave address (43 base64url characters), got "{recipient}".',
   transactionDataMismatch: "The transaction's data_root or data_size doesn't match its data.",
