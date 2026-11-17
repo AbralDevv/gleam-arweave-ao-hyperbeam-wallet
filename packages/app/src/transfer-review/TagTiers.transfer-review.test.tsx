@@ -1,0 +1,77 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import type { SigningApprovalPreview } from "@gleam/core";
+import { SigningApprovalScreen } from "../approval/SigningApprovalScreen";
+
+const WALLET = "ECvThiUQHWJj-8HsiyF6C8_mgFbr6seluRs2GKyXa7Y";
+const PROCESS = "VvF0Z3xMswxr2CVdLFei2a1NwYffiQ8nIQiPJ1gxJKY";
+const HASH = "1a9d4f7c2e5b8a0f3c6d9b2e5a8f1c4d7b0e3a6c9f2b5d8e1a4c7f0b3d6e9a2c";
+
+function item(tags: Array<{ name: string; value: string }>, target: string | null) {
+  return { decodedData: "", tags, target, payloadHash: HASH, transfer: null };
+}
+
+function renderItems(items: NonNullable<SigningApprovalPreview["items"]>) {
+  const preview: SigningApprovalPreview = {
+    kind: items.length > 1 ? "batchSignDataItem" : "signDataItem",
+    recipient: null,
+    amount: null,
+    fee: null,
+    token: null,
+    tokenDenomination: null,
+    tokenTicker: null,
+    decodedData: null,
+    tags: [],
+    payloadHash: HASH,
+    items,
+  };
+  return render(
+    <SigningApprovalScreen
+      origin="https://example.com"
+      preview={preview}
+      from={{ name: "Crystal", address: WALLET }}
+      onReject={vi.fn()}
+      onSign={vi.fn()}
+    />,
+  );
+}
+
+afterEach(cleanup);
+
+describe("TagTiers on the signing approval screen", () => {
+  it("heads an item with its Action and names the wallet and repeats of the target", () => {
+    renderItems([
+      item(
+        [
+          { name: "Action", value: "Credit-Notice" },
+          { name: "Quantity", value: "1" },
+          { name: "Recipient", value: WALLET },
+          { name: "From-Process", value: PROCESS },
+          { name: "App-Name", value: "PermaTell" },
+          { name: "Data-Protocol", value: "ao" },
+        ],
+        WALLET,
+      ),
+    ]);
+    expect(screen.getByText("Credit-Notice")).toBeTruthy();
+    expect(screen.getByText("Addresses")).toBeTruthy();
+    expect(screen.getByText("This wallet")).toBeTruthy();
+    expect(screen.getByText("Same as Target")).toBeTruthy();
+    expect(screen.getByText("PermaTell")).toBeTruthy();
+    expect(screen.getByText("Protocol")).toBeTruthy();
+    expect(screen.queryByText("Item 1")).toBeNull();
+  });
+
+  it("marks a protocol tag carrying an unexpected value", () => {
+    renderItems([item([{ name: "Action", value: "Vote" }, { name: "Variant", value: "ao.TN.2" }], null)]);
+    expect(screen.getByText("ao.TN.2")).toBeTruthy();
+    expect(screen.getByText("Unusual")).toBeTruthy();
+    expect(screen.getByText(/expected ao\.TN\.1 \/ ao\.N\.1/)).toBeTruthy();
+  });
+
+  it("numbers the items of a request that signs more than one", () => {
+    renderItems([item([{ name: "Action", value: "A" }], null), item([{ name: "Action", value: "B" }], null)]);
+    expect(screen.getByText("Item 1")).toBeTruthy();
+    expect(screen.getByText("Item 2")).toBeTruthy();
+  });
+});
