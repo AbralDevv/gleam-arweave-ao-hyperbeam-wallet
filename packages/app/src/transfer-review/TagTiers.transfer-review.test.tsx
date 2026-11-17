@@ -74,4 +74,10 @@ describe("TagTiers on the signing approval screen", () => {
     expect(screen.getByText("Item 1")).toBeTruthy();
     expect(screen.getByText("Item 2")).toBeTruthy();
   });
+
+  it("escapes a bidi Quantity name in app tags instead of headlining it", () => {
+    renderItems([item([{ name: "Action", value: "Vote" }, { name: "Quantity\u202E", value: "5" }], null)]);
+    expect(screen.getByText("App tags")).toBeTruthy();
+    expect(screen.getByText("<U+202E>")).toBeTruthy();
+  });
 });
