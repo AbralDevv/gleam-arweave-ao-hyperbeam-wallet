@@ -260,6 +260,16 @@ describe("BackupHandler: restore", () => {
     await expect(fresh.backup.restore({ password: PASSWORD })).rejects.toThrow(userErrorMessage("backupFileMissing"));
   });
 
+  it("never restores over a wallet added while it ran", async () => {
+    const original = await backedUp();
+    const fresh = device(original.cloud.account);
+    original.cloud.account.beforeRead = async () => {
+      await fresh.lifecycle.addWatchWallet({ address: "d".repeat(43), name: "New" });
+    };
+    await expect(fresh.backup.restore({ password: PASSWORD })).rejects.toThrow();
+    expect(names(fresh)).toEqual(["New"]);
+  });
+
   it("never restores over a vault that has wallets", async () => {
     const original = await backedUp();
     const occupied = await unlocked(original.cloud.account, otherVault);
@@ -474,6 +484,24 @@ describe("BackupHandler: sync between devices", () => {
     await first.lifecycle.lockWallet();
     await first.lifecycle.unlockWallet({ password: PASSWORD });
     expect(await first.keySession.getSigner(travel.id)).not.toBeNull();
+  });
+
+  it("adds nothing to a vault reset while a pull was under way", async () => {
+    const { first } = await pair();
+    let reset: Promise<void> | undefined;
+    first.cloud.account.beforeRead = async () => {
+      // Hold the session lock so the reset is queued ahead of the pull's merge.
+      const gate = new Promise<void>((resolve) => setTimeout(resolve, 50));
+      void first.keySession.withSessionLock(() => gate);
+      reset = first.lifecycle.resetAllWallets();
+    };
+    const writes = first.cloud.account.writes;
+    await first.backup.sync({ pull: true });
+    await reset;
+    expect(names(first)).toEqual([]);
+    expect(first.cloud.account.writes).toBe(writes);
+    expect(first.storage.entries.get(BACKUP_KEY)).toBeUndefined();
+    expect(first.storage.entries.get(BACKUP_STATE_KEY)).toBeUndefined();
   });
 
   it("doesn't pull back a wallet deleted here while another device still has it", async () => {

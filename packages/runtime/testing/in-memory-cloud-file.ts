@@ -14,6 +14,8 @@ export class InMemoryCloudAccount {
   allowsSignIn = true;
   writes = 0;
   revoked = 0;
+  /** Runs once at the start of the next read, for tests that interleave work with one. */
+  beforeRead: (() => Promise<void>) | null = null;
 }
 
 export class InMemoryCloudFile implements CloudFilePort {
@@ -27,6 +29,9 @@ export class InMemoryCloudFile implements CloudFilePort {
   }
 
   async read(): Promise<{ bytes: Bytes; updatedAt: number } | null> {
+    const hook = this.account.beforeRead;
+    this.account.beforeRead = null;
+    await hook?.();
     const { file } = this.account;
     return file ? { bytes: file.bytes.slice(), updatedAt: file.updatedAt } : null;
   }

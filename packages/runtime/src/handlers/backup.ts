@@ -235,8 +235,7 @@ export class BackupHandler {
   async restore(req: RestoreRequest): Promise<{ unlockedWalletIds: string[] }> {
     const cloud = this.requireCloud();
     const password = await this.inTurn(async () => {
-      const wallets = await this.storage.get<unknown>(WALLETS_KEY);
-      if (Array.isArray(wallets) && wallets.length > 0) throw dappError("A backup restores only onto an empty vault.");
+      if (!(await this.vaultIsEmpty())) throw dappError("A backup restores only onto an empty vault.");
       await this.signIn(cloud);
       const remote = await cloud.read();
       if (!remote) throw new Error(userErrorMessage("backupFileMissing"));
@@ -261,14 +260,19 @@ export class BackupHandler {
       }
       if (!body || !bodyMatchesHeader(body, file.header)) throw new Error(userErrorMessage("backupFileCorrupt"));
 
-      try {
-        await writeBackupData(this.storage, mergeBackupDevices(body.devices));
-      } catch {
-        throw new Error(userErrorMessage("backupFileCorrupt"));
-      }
-      await this.storage.setMany({
-        [BACKUP_KEY]: { backupId, wrapped } satisfies StoredBackupKey,
-        [BACKUP_STATE_KEY]: { writer: newBackupId(), lastWriteAt: null, dirtyAt: this.now(), problem: null } satisfies BackupState,
+      // Checked again under the lock wallets are added under: one may have
+      // been added while the backup was being opened.
+      await this.session.withSessionLock(async () => {
+        if (!(await this.vaultIsEmpty())) throw dappError("A backup restores only onto an empty vault.");
+        try {
+          await writeBackupData(this.storage, mergeBackupDevices(body.devices));
+        } catch {
+          throw new Error(userErrorMessage("backupFileCorrupt"));
+        }
+        await this.storage.setMany({
+          [BACKUP_KEY]: { backupId, wrapped } satisfies StoredBackupKey,
+          [BACKUP_STATE_KEY]: { writer: newBackupId(), lastWriteAt: null, dirtyAt: this.now(), problem: null } satisfies BackupState,
+        });
       });
       return password;
     });
@@ -281,6 +285,11 @@ export class BackupHandler {
       console.error("The first backup after a restore failed; the next change retries it.", error);
     });
     return unlocked;
+  }
+
+  private async vaultIsEmpty(): Promise<boolean> {
+    const wallets = await this.storage.get<unknown>(WALLETS_KEY);
+    return !(Array.isArray(wallets) && wallets.length > 0);
   }
 
   private requireCloud(): CloudFilePort {
@@ -360,7 +369,8 @@ export class BackupHandler {
       try {
         const { [state.writer]: own, ...others } = remote && !alone ? await this.devicesIn(remote.bytes, stored) : {};
         const { add, removed } = planPull(await readBackupData(this.storage), own, Object.values(others));
-        const pulled = await this.addPulled(add);
+        const pulled = await this.addPulled(add, stored.backupId);
+        if (pulled === null) return "off";
         this.lastPullAt = startedAt;
         if (!pulled && !interactive && state.dirtyAt === null && own !== undefined) return "current";
 
@@ -393,9 +403,19 @@ export class BackupHandler {
 
   /**
    * Adds what `planPull` found to storage, each key merged with its value
-   * at write time. Returns whether anything was added.
+   * at write time. Returns whether anything was added, or null when the
+   * vault no longer uses `backupId`: a reset or a new setup since this
+   * write began, which then has nothing to add or write.
    */
-  private async addPulled(add: BackupData): Promise<boolean> {
+  private async addPulled(add: BackupData, backupId: string): Promise<boolean | null> {
+    return this.session.withSessionLock(async () => {
+      const current = await loadBackupKey(this.storage);
+      if (current?.backupId !== backupId) return null;
+      return this.mergePulled(add);
+    });
+  }
+
+  private async mergePulled(add: BackupData): Promise<boolean> {
     let added = false;
     const merge = async (key: string, items: unknown[]) => {
       const written = await updateStored<unknown[]>(this.storage, key, (current) => {
@@ -407,9 +427,7 @@ export class BackupHandler {
       if (written !== undefined) added = true;
     };
     const { [WALLETS_KEY]: wallets, ...rest } = add;
-    if (Array.isArray(wallets)) {
-      await this.session.withSessionLock(() => merge(WALLETS_KEY, wallets.filter(isValidWallet)));
-    }
+    if (Array.isArray(wallets)) await merge(WALLETS_KEY, wallets.filter(isValidWallet));
     for (const [key, items] of Object.entries(rest)) if (Array.isArray(items)) await merge(key, items);
     return added;
   }
