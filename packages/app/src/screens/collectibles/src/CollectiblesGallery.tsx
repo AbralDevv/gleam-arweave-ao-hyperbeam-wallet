@@ -132,7 +132,13 @@ export function CollectiblesGallery({ items, loading, onOpen }: CollectiblesGall
                 position === index ? "opacity-100" : "opacity-45 hover:opacity-80",
               )}
             >
-              <CollectibleThumbnail name={item.name} imageUrl={item.imageUrl} videoUrl={item.videoUrl} decorative />
+              <CollectibleThumbnail
+                name={item.name}
+                imageUrl={item.imageUrl}
+                videoUrl={item.videoUrl}
+                kind={collectibleKind(item.contentType)}
+                decorative
+              />
             </button>
           ))}
         </div>
@@ -173,6 +179,7 @@ export function CollectiblesGallery({ items, loading, onOpen }: CollectiblesGall
           imageUrl={shown.imageUrl}
           videoUrl={shown.videoUrl}
           play
+          kind={collectibleKind(shown.contentType)}
           kindLabel={collectibleKindLabel(t, shown.contentType)}
           decorative
           className="rounded-2xl"

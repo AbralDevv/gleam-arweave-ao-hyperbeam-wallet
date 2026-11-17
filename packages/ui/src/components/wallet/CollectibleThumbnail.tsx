@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { File, FileText, Globe, Music, type LucideIcon } from "lucide-react";
+import type { CollectibleKind } from "@gleam/core";
 import { cn } from "../../primitives/cn";
 import { createImageCache } from "./image-cache";
 
@@ -50,7 +52,9 @@ export interface CollectibleThumbnailProps {
   videoUrl?: string;
   /** Loops the video, unless the system asks for reduced motion. Otherwise only its first frame shows. */
   play?: boolean;
-  /** Shown under the file icon when the tile has no preview. */
+  /** Picks the icon when the tile has no preview; a plain file without it. */
+  kind?: CollectibleKind;
+  /** Shown under the icon when the tile has no preview. */
   kindLabel?: string;
   className?: string;
   /** Empty alt text where the name is already shown beside the image, as escaped untrusted text. */
@@ -62,6 +66,7 @@ export function CollectibleThumbnail({
   imageUrl,
   videoUrl,
   play = false,
+  kind,
   kindLabel,
   className,
   decorative = false,
@@ -144,7 +149,7 @@ export function CollectibleThumbnail({
         ) : null
       ) : (
         <div data-testid="collectible-placeholder" className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-faint">
-          <FileIcon />
+          <KindIcon kind={kind} />
           {kindLabel ? <span className="text-label">{kindLabel}</span> : null}
         </div>
       )}
@@ -152,16 +157,9 @@ export function CollectibleThumbnail({
   );
 }
 
-function FileIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path
-        d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <path d="M14 3v5h5" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-    </svg>
-  );
+const KIND_ICONS: Partial<Record<CollectibleKind, LucideIcon>> = { document: FileText, audio: Music, web: Globe };
+
+function KindIcon({ kind }: { kind: CollectibleKind | undefined }) {
+  const Icon = (kind && KIND_ICONS[kind]) ?? File;
+  return <Icon size={22} strokeWidth={1.5} aria-hidden="true" data-kind={Icon === File ? "file" : kind} />;
 }

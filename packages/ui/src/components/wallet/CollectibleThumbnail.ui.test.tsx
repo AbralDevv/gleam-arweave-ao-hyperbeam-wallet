@@ -66,6 +66,20 @@ describe("CollectibleThumbnail", () => {
     expect(screen.getByTestId("collectible-placeholder").textContent).toBe("Web page");
   });
 
+  it("picks the icon by kind, and the plain file without one", () => {
+    const iconOf = (kind?: "document" | "audio" | "web" | "file") => {
+      const { container, unmount } = render(<CollectibleThumbnail name="X" kind={kind} />);
+      const icon = container.querySelector("svg")!.getAttribute("data-kind");
+      unmount();
+      return icon;
+    };
+    expect(iconOf("document")).toBe("document");
+    expect(iconOf("audio")).toBe("audio");
+    expect(iconOf("web")).toBe("web");
+    expect(iconOf("file")).toBe("file");
+    expect(iconOf()).toBe("file");
+  });
+
   it("shows the plain tile when there is no image", () => {
     render(<CollectibleThumbnail name="Doc" />);
     expect(screen.getByTestId("collectible-placeholder")).toBeTruthy();

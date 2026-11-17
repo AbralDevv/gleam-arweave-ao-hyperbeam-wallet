@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import type { Collectible } from "@gleam/core";
+import { collectibleKind, type Collectible } from "@gleam/core";
 import { CollectibleThumbnail } from "@gleam/ui/src/components/wallet/index.ts";
 import { useT } from "../../../i18n";
 import { collectibleKindLabel } from "./CollectiblesGallery";
@@ -26,6 +26,7 @@ export function CollectibleDetailView({ collectible, onBack, onSend }: Collectib
           imageUrl={collectible.imageUrl}
           videoUrl={collectible.videoUrl}
           play
+          kind={collectibleKind(collectible.contentType)}
           kindLabel={collectibleKindLabel(t, collectible.contentType)}
           className="rounded-2xl"
         />
