@@ -110,7 +110,7 @@ function AppTagRow({ tag }: { tag: AppTag }) {
             <span className="font-semibold text-warning">{t("approval.tagUnusualValue")}</span>
             <span className="text-muted">
               {" · "}
-              {tag.unusual.expected === null ? t("approval.tagExpectedNumber") : t("approval.tagExpected", { value: tag.unusual.expected })}
+              {t("approval.tagExpected", { value: tag.unusual.expected })}
             </span>
           </span>
         ) : null}

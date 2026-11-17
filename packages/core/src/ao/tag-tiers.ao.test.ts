@@ -42,13 +42,31 @@ describe("tierTags", () => {
   });
 
   it("lifts a protocol tag with an unexpected value into app tags, marked", () => {
-    const tiers = tierTags([tag("Action", "Vote"), tag("Variant", "ao.TN.2"), tag("Type", "Process"), tag("Reference", "7"), tag("Reference", "x")]);
-    expect(tiers.protocol).toEqual([tag("Reference", "7")]);
+    const tiers = tierTags([tag("Action", "Vote"), tag("Variant", "ao.TN.2"), tag("Type", "Process"), tag("data-protocol", "x")]);
+    expect(tiers.protocol).toEqual([]);
     expect(tiers.app).toEqual([
       { ...tag("Variant", "ao.TN.2"), unusual: { expected: "ao.TN.1 / ao.N.1" } },
       { ...tag("Type", "Process"), unusual: { expected: "Message" } },
-      { ...tag("Reference", "x"), unusual: { expected: null } },
+      { ...tag("data-protocol", "x"), unusual: { expected: "ao" } },
     ]);
+  });
+
+  it("reads HyperBEAM's lowercase names, preferring aos's exact case", () => {
+    const tiers = tierTags([tag("action", "Transfer"), tag("quantity", "5"), tag("type", "Message"), tag("variant", "ao.N.1")]);
+    expect(tiers.headline).toEqual({ tag: tag("action", "Transfer"), quantity: tag("quantity", "5") });
+    expect(tiers.protocol).toEqual([tag("type", "Message"), tag("variant", "ao.N.1")]);
+    expect(tierTags([tag("action", "A"), tag("Action", "B")]).headline?.tag).toEqual(tag("Action", "B"));
+    expect(tierTags([tag("type", "Process")]).headline?.tag).toEqual(tag("type", "Process"));
+  });
+
+  it("shows client tags and any Reference with the protocol tags", () => {
+    const tags = [tag("Reference", "t783"), tag("Reference", "7"), tag("Client", "Wander"), tag("Client-Version", "1.41.3"), tag("ao-types", 'integer=("nonce")'), tag("require-codec", "application/json")];
+    expect(tierTags(tags).protocol).toEqual(tags);
+  });
+
+  it("treats an EVM address as an address", () => {
+    const evm = "0x1271AFf75eb491053884BF93af63a9cadB96C1aB";
+    expect(tierTags([tag("Target", evm), tag("Note", "0x1234")]).addresses).toEqual([tag("Target", evm)]);
   });
 
   it("treats HyperBEAM's ao.N.1 variant as a protocol tag", () => {
