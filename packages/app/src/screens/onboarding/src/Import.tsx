@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePlatform } from "../../../app-platform/context";
 import { ScreenHeader } from "@gleam/ui/src/primitives/screen-header.tsx";
 import { FileDropzone } from "@gleam/ui/src/primitives/file-dropzone.tsx";
 import { Button } from "@gleam/ui/src/primitives/button.tsx";
@@ -22,6 +23,9 @@ export interface ImportProps {
 
 export function Import({ onBack, onValidJWK }: ImportProps) {
   const t = useT();
+  // A pasted keyfile is the key itself, shown in full.
+  const { secureScreen } = usePlatform();
+  useEffect(() => secureScreen?.protect(), [secureScreen]);
   const [fileName, setFileName] = useState<string>();
   const [pasteValue, setPasteValue] = useState("");
   const [errorMessage, setErrorMessage] = useState<string>();
