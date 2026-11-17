@@ -245,6 +245,10 @@ html:not(.motion) .i-launch-sparks { display: none; }
 /* Each letter clips its own glint, so the wave can scale the letter around it.
    The glint crosses them one after another, so it still reads as one sweep. */
 .i-launch-word b {
+  /* The tight tracking pulls each glyph past its box, and the clipped glint
+     only paints inside the box: widen it, and give the room back */
+  padding: 0 .12em;
+  margin: 0 -.12em;
   font-weight: inherit;
   background: linear-gradient(100deg,
       var(--on-ink) 38%,
