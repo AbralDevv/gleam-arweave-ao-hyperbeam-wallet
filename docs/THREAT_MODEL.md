@@ -315,9 +315,12 @@ count as a finding.
     and `events` are polyfilled). A production build contains no
     elliptic code: its curve constants, error strings and `HmacDRBG` are
     absent from `.output/chrome-mv3`.
-  - `deepmerge` 4.3.1 (GHSA-gcqx-w48m-w2h4): it comes only through
-    `wxt` → `web-ext` → `addons-linter`, a development tool, and isn't in
-    the build. Its ignore runs until 2027-04-28.
+  - `picomatch` 2.3.2 and 4.0.7 (GHSA-fc5q-39xc-vjpf): a
+    regular-expression denial of service when parsing crafted glob
+    patterns. It has no patched release. It reaches only build and test
+    tooling (`vite`, `tinyglobby`, `fdir`, `unplugin-utils`), which match
+    the repository's own file globs, and isn't in the build. Its ignore
+    runs until 2027-05-18.
   - `minimatch` (GHSA-g3hv-75wg-m249): fixed only in 11.0.1, a major that
     `eslint` and `typescript-estree` don't accept. It reaches only lint and
     `web-ext` tooling, which match the repository's own globs, and isn't
