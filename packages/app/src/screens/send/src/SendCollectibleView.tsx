@@ -4,6 +4,7 @@ import {
   capabilityRefusal,
   collectibleSendRefusal,
   isHardwareWalletMethod,
+  matchUserError,
   type Collectible,
   type CollectibleRef,
   type Contact,
@@ -115,7 +116,10 @@ export function SendCollectibleView({ runtime, wallet, collectible, onBack, onDo
   if (step.kind === "compose") {
     const unsupported = capabilityRefusal(wallet.method, "signTransaction", "send collectibles");
     const parsed = recipientSchema.safeParse(step.recipient);
-    const canContinue = !step.submitting && unsupported === null && parsed.success;
+    // A gateway failure can clear on retry; a balance short of the fee can't, so Review waits for AR.
+    const feeUncovered =
+      feeQuoteQuery.isError && matchUserError(feeQuoteQuery.error.message)?.code === "networkFeeNeeded";
+    const canContinue = !step.submitting && unsupported === null && parsed.success && !feeUncovered;
 
     const handleContinue = async () => {
       const error = recipientError(step.recipient, wallet.address, collectible.id);
@@ -183,7 +187,16 @@ export function SendCollectibleView({ runtime, wallet, collectible, onBack, onDo
             savingAddress={saveContactMutation.isPending}
           />
 
-          {quotedRecipient !== undefined && unsupported === null ? <NetworkFeeLine quote={feeQuoteQuery} /> : null}
+          {/* A collectible send has no amount field to carry a failed quote, so the reason shows where the fee would. */}
+          {quotedRecipient !== undefined && unsupported === null && !step.error ? (
+            feeQuoteQuery.isError ? (
+              <div role="alert" className="text-label leading-snug text-warning">
+                {errorText(feeQuoteQuery.error)}
+              </div>
+            ) : (
+              <NetworkFeeLine quote={feeQuoteQuery} />
+            )
+          ) : null}
 
           {unsupported ? (
             <p role="status" className="rounded-md border border-l-[3px] border-line border-l-warning bg-mist px-3.5 py-3 text-label leading-snug text-foreground">

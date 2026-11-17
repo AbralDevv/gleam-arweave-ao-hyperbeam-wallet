@@ -103,6 +103,6 @@ describe("assertCoversNetworkFee", () => {
   });
 
   it("names the fee in AR when the balance falls short", () => {
-    expect(() => assertCoversNetworkFee("1", "654321")).toThrow("Sending needs about 0.000000654321 AR for the network fee.");
+    expect(() => assertCoversNetworkFee("1", "654321")).toThrow("You need at least 0.000000654321 AR for the network fee.");
   });
 });
