@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { APPROVAL_METHODS, KEY_METHODS, PROVIDER_METHODS } from "@gleam/core";
 import { APPROVAL_GATED_METHODS } from "@gleam/messaging/src/page-protocol.ts";
-import { BACKGROUND_MESSAGES, PAGE_METHODS, SITE_MESSAGES, parseParams } from "./methods";
+import { BACKGROUND_MESSAGES, PAGE_METHODS, SITE_MESSAGES, parseParams, readSiteMessage } from "./methods";
 
 const PROCESS_ID = "0syT13r0s0tgPmIed95bJnuSqaD29HQNN8D3ElLSrsc";
 
@@ -259,5 +259,39 @@ describe("dispatch/methods: Gleam Points refusals", () => {
     expect(parseParams(PAGE_METHODS[method].params, { transaction }).transaction.tags).toEqual([
       { name: "Note", value: POINTS_MESSAGE },
     ]);
+  });
+});
+
+describe("dispatch/methods: site messages", () => {
+  it("accepts a valid invite message", () => {
+    expect(readSiteMessage("gleam-points:invite", { type: "gleam-points:invite", code: "GLEAM42" })).toEqual({
+      type: "gleam-points:invite",
+      code: "GLEAM42",
+    });
+  });
+
+  it("refuses a message whose fields live on its prototype", () => {
+    const inherited = Object.create({ type: "gleam-points:invite", code: "GLEAM42" });
+    expect(readSiteMessage("gleam-points:invite", inherited)).toBeNull();
+  });
+
+  it("refuses an invite with an extra key", () => {
+    expect(
+      readSiteMessage("gleam-points:invite", { type: "gleam-points:invite", code: "GLEAM42", admin: true }),
+    ).toBeNull();
+  });
+
+  it("refuses a non-object or an array", () => {
+    expect(readSiteMessage("gleam-points:invite", "gleam-points:invite")).toBeNull();
+    expect(readSiteMessage("gleam-points:invite", [])).toBeNull();
+    expect(readSiteMessage("gleam-points:invite", null)).toBeNull();
+  });
+
+  it("refuses a code the pattern rejects", () => {
+    expect(readSiteMessage("gleam-points:invite", { type: "gleam-points:invite", code: "gleam42" })).toBeNull();
+  });
+
+  it("refuses an attest-status message with an extra key", () => {
+    expect(readSiteMessage("gleam-points:attest-status", { type: "gleam-points:attest-status", code: "GLEAM42" })).toBeNull();
   });
 });
