@@ -119,6 +119,18 @@ describe("POST /invite/redeem", () => {
     expect(await redemptions(db)).toHaveLength(3);
   });
 
+  it("adds a member's granted bonus seats to the code's seats", async () => {
+    const { db, check, redeem, me } = await setup();
+    const alicesDevice = await createTestDevice();
+    await addMember(db, alice, alicesDevice);
+    await db.query("UPDATE wallets SET bonus_seats = 2 WHERE address = $1", [alice.address]);
+    expect((await check("ALICE001")).json.seatsLeft).toBe(5);
+    expect(((await me(alicesDevice)).json.wallets as { seatsLeft: number }[])[0]?.seatsLeft).toBe(5);
+
+    for (let i = 0; i < 5; i++) expect((await redeem(await createTestDevice(), "ALICE001")).json.result).toBe("ok");
+    expect((await redeem(await createTestDevice(), "ALICE001")).json.result).toBe("full");
+  });
+
   it("answers unknown for a code nobody holds, storing nothing", async () => {
     const { db, redeem } = await setup();
     const newcomer = await createTestDevice();
