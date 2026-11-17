@@ -20,6 +20,52 @@ describe("CollectibleThumbnail", () => {
     expect(container.querySelector("img")!.getAttribute("alt")).toBe("");
   });
 
+  it("loads a video muted and inline, showing only its first frame unless asked to play", () => {
+    const { container, rerender } = render(<CollectibleThumbnail name="Clip" videoUrl="https://arweave.net/vid" />);
+    const video = container.querySelector("video")!;
+    expect(video.getAttribute("src")).toBe("https://arweave.net/vid");
+    expect(video.muted).toBe(true);
+    expect(video.hasAttribute("playsinline")).toBe(true);
+    expect(video.getAttribute("preload")).toBe("metadata");
+    expect(video.autoplay).toBe(false);
+    expect(video.loop).toBe(false);
+    expect(video.hasAttribute("controls")).toBe(false);
+    rerender(<CollectibleThumbnail name="Clip" videoUrl="https://arweave.net/vid" play />);
+    expect(container.querySelector("video")!.autoplay).toBe(true);
+    expect(container.querySelector("video")!.loop).toBe(true);
+  });
+
+  it("does not loop a video when the system asks for reduced motion", () => {
+    const matchMedia = vi.fn().mockReturnValue({ matches: true });
+    vi.stubGlobal("matchMedia", matchMedia);
+    try {
+      const { container } = render(<CollectibleThumbnail name="Clip" videoUrl="https://arweave.net/vid" play />);
+      expect(container.querySelector("video")!.autoplay).toBe(false);
+      expect(matchMedia).toHaveBeenCalledWith("(prefers-reduced-motion: reduce)");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("prefers the image when both are given", () => {
+    const { container } = render(<CollectibleThumbnail name="Both" imageUrl="https://arweave.net/abc" videoUrl="https://arweave.net/vid" />);
+    expect(container.querySelector("video")).toBeNull();
+    expect(container.querySelector("img")!.getAttribute("src")).toBe("https://arweave.net/abc");
+  });
+
+  it("stops pulsing once the video's first frame loads", () => {
+    const { container } = render(<CollectibleThumbnail name="Clip" videoUrl="https://arweave.net/vid" />);
+    const tile = screen.getByTestId("collectible-tile");
+    expect(tile.className).toContain("gleam-cached-pulse");
+    fireEvent.loadedData(container.querySelector("video")!);
+    expect(tile.className).not.toContain("gleam-cached-pulse");
+  });
+
+  it("labels the plain tile when given a kind", () => {
+    render(<CollectibleThumbnail name="Site" kindLabel="Web page" />);
+    expect(screen.getByTestId("collectible-placeholder").textContent).toBe("Web page");
+  });
+
   it("shows the plain tile when there is no image", () => {
     render(<CollectibleThumbnail name="Doc" />);
     expect(screen.getByTestId("collectible-placeholder")).toBeTruthy();

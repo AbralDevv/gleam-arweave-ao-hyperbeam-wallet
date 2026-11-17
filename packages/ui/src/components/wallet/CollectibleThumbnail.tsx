@@ -32,27 +32,47 @@ interface LoadState {
 
 const fresh = (url: string | undefined): LoadState => ({ url, tries: 0, loaded: false, errored: false });
 
+function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+}
+
 /**
- * A square collectible preview. The image loads only through `<img>`:
- * an NFT's media is untrusted, and an element that can run script or
- * navigate (iframe, object, embed) is never an option. The empty tile
- * pulses while the image loads. Without an image, or once every retry
- * has failed, a plain neutral tile with a file icon stands in.
+ * A square collectible preview. Media loads only through `<img>` or a
+ * muted `<video>`: an NFT's media is untrusted, and an element that can
+ * run script or navigate (iframe, object, embed) is never an option. The
+ * empty tile pulses while the media loads. Without media, or once every
+ * retry has failed, a plain neutral tile with a file icon stands in.
  */
 export interface CollectibleThumbnailProps {
   name: string;
   imageUrl?: string;
+  /** Used only when there is no `imageUrl`. */
+  videoUrl?: string;
+  /** Loops the video, unless the system asks for reduced motion. Otherwise only its first frame shows. */
+  play?: boolean;
+  /** Shown under the file icon when the tile has no preview. */
+  kindLabel?: string;
   className?: string;
   /** Empty alt text where the name is already shown beside the image, as escaped untrusted text. */
   decorative?: boolean;
 }
 
-export function CollectibleThumbnail({ name, imageUrl, className, decorative = false }: CollectibleThumbnailProps) {
-  const [stored, setStored] = useState<LoadState>(() => fresh(imageUrl));
-  const load = stored.url === imageUrl ? stored : fresh(imageUrl);
-  const src = collectibleImages.useCachedImage(imageUrl, load.tries);
+export function CollectibleThumbnail({
+  name,
+  imageUrl,
+  videoUrl,
+  play = false,
+  kindLabel,
+  className,
+  decorative = false,
+}: CollectibleThumbnailProps) {
+  const mediaUrl = imageUrl ?? videoUrl;
+  const [stored, setStored] = useState<LoadState>(() => fresh(mediaUrl));
+  const load = stored.url === mediaUrl ? stored : fresh(mediaUrl);
+  const cachedImage = collectibleImages.useCachedImage(imageUrl, load.tries);
+  const src = imageUrl !== undefined ? cachedImage : videoUrl;
   const update = (change: (current: LoadState) => LoadState) =>
-    setStored((previous) => change(previous.url === imageUrl ? previous : fresh(imageUrl)));
+    setStored((previous) => change(previous.url === mediaUrl ? previous : fresh(mediaUrl)));
 
   const failed = load.errored && load.tries >= RETRY_DELAYS_MS.length;
   const waitingToRetry = load.errored && !failed;
@@ -61,7 +81,7 @@ export function CollectibleThumbnail({ name, imageUrl, className, decorative = f
     if (!waitingToRetry) return;
     const retry = () =>
       setStored((previous) =>
-        previous.url === imageUrl && previous.errored ? { ...previous, tries: previous.tries + 1, errored: false } : previous,
+        previous.url === mediaUrl && previous.errored ? { ...previous, tries: previous.tries + 1, errored: false } : previous,
       );
     const timer = setTimeout(retry, RETRY_DELAYS_MS[load.tries]);
     window.addEventListener("online", retry);
@@ -69,12 +89,18 @@ export function CollectibleThumbnail({ name, imageUrl, className, decorative = f
       clearTimeout(timer);
       window.removeEventListener("online", retry);
     };
-  }, [waitingToRetry, load.tries, imageUrl]);
+  }, [waitingToRetry, load.tries, mediaUrl]);
 
-  const showImage = typeof src === "string" && !load.errored;
-  const pending = imageUrl !== undefined && !load.loaded && !failed;
+  const showMedia = typeof src === "string" && !load.errored;
+  const pending = mediaUrl !== undefined && !load.loaded && !failed;
   // A cached copy is already on the device, so it appears at once rather than fading in.
   const fade = typeof src === "string" && !src.startsWith("blob:");
+  const mediaClass = cn(
+    "h-full w-full object-cover",
+    fade && "transition-opacity duration-300 ease-out",
+    fade && !load.loaded && "opacity-0",
+  );
+  const loop = play && !prefersReducedMotion();
 
   return (
     <div
@@ -82,8 +108,25 @@ export function CollectibleThumbnail({ name, imageUrl, className, decorative = f
       data-loading={pending || undefined}
       className={cn("relative aspect-square w-full overflow-hidden rounded-lg bg-mist", pending && "gleam-cached-pulse", className)}
     >
-      {imageUrl !== undefined && !failed ? (
-        showImage ? (
+      {mediaUrl !== undefined && !failed ? (
+        showMedia && imageUrl === undefined ? (
+          <video
+            key={load.tries}
+            src={src}
+            aria-label={decorative ? undefined : name}
+            aria-hidden={decorative || undefined}
+            muted
+            playsInline
+            loop={loop}
+            autoPlay={loop}
+            preload="metadata"
+            disablePictureInPicture
+            disableRemotePlayback
+            onLoadedData={() => update((current) => ({ ...current, loaded: true }))}
+            onError={() => update((current) => ({ ...current, errored: true }))}
+            className={mediaClass}
+          />
+        ) : showMedia ? (
           <img
             key={load.tries}
             src={src}
@@ -95,17 +138,14 @@ export function CollectibleThumbnail({ name, imageUrl, className, decorative = f
               if (imageUrl !== undefined && src?.startsWith("blob:")) collectibleImages.forget(imageUrl);
               update((current) => ({ ...current, errored: true }));
             }}
-            className={cn(
-              "h-full w-full object-cover",
-              fade && "transition-opacity duration-300 ease-out",
-              fade && !load.loaded && "opacity-0",
-            )}
+            className={mediaClass}
             style={{ objectFit: "cover" }}
           />
         ) : null
       ) : (
-        <div data-testid="collectible-placeholder" className="flex h-full w-full items-center justify-center text-faint">
+        <div data-testid="collectible-placeholder" className="flex h-full w-full flex-col items-center justify-center gap-1.5 text-faint">
           <FileIcon />
+          {kindLabel ? <span className="text-label">{kindLabel}</span> : null}
         </div>
       )}
     </div>

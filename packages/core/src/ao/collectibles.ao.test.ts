@@ -153,22 +153,41 @@ describe("discoverCollectibles", () => {
     await expect(result).resolves.toEqual([]);
   });
 
-  it("sets imageUrl only for image content types", async () => {
+  it("sets imageUrl only for images and videoUrl only for videos", async () => {
     const { result } = run({
-      initial: [A, B, C],
+      initial: [A, B, C, FUNGIBLE],
       descriptors: {
         [A]: { ...NFT, name: "Pic", "content-type": "image/png" },
         [B]: { ...NFT, name: "Song", "content-type": "audio/mpeg" },
         [C]: { ...NFT, name: "Bare" },
+        [FUNGIBLE]: { ...NFT, name: "Clip", "content-type": "video/mp4" },
       },
-      balances: { [A]: 1, [B]: 1, [C]: 1 },
+      balances: { [A]: 1, [B]: 1, [C]: 1, [FUNGIBLE]: 1 },
     });
     const byName = Object.fromEntries((await result).map((c) => [c.name, c]));
     expect(byName.Pic).toMatchObject({ contentType: "image/png", imageUrl: `${GATEWAY}/${A}` });
+    expect(byName.Pic).not.toHaveProperty("videoUrl");
+    expect(byName.Clip).toMatchObject({ contentType: "video/mp4", videoUrl: `${GATEWAY}/${FUNGIBLE}` });
+    expect(byName.Clip).not.toHaveProperty("imageUrl");
     expect(byName.Song?.contentType).toBe("audio/mpeg");
     expect(byName.Song).not.toHaveProperty("imageUrl");
+    expect(byName.Song).not.toHaveProperty("videoUrl");
     expect(byName.Bare).not.toHaveProperty("contentType");
     expect(byName.Bare).not.toHaveProperty("imageUrl");
+  });
+
+  it("keeps the Description tag, trimmed and capped, and leaves it off when blank", async () => {
+    const { result } = run({
+      initial: [A, B],
+      descriptors: {
+        [A]: { ...NFT, name: "Told", Description: `  ${"d".repeat(1200)}  ` },
+        [B]: { ...NFT, name: "Quiet", description: "   " },
+      },
+      balances: { [A]: 1, [B]: 1 },
+    });
+    const byName = Object.fromEntries((await result).map((c) => [c.name, c]));
+    expect(byName.Told?.description).toBe("d".repeat(1000));
+    expect(byName.Quiet).not.toHaveProperty("description");
   });
 
   it("names a collection from its own Name tag and falls back to a shortened id", async () => {

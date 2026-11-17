@@ -1,4 +1,4 @@
-import type { Collectible } from "../models/collectible";
+import { collectibleKind, type Collectible } from "../models/collectible";
 import { classifyAsset, createAssetScanner, mapLimit, PROCESS_ID, tagMap, withRequestTimeout, type Tag } from "./asset-scan";
 import { readL1Balance } from "./balance";
 import { userErrorMessage } from "../models/user-errors";
@@ -117,6 +117,8 @@ export async function discoverCollectibles(options: DiscoverCollectiblesOptions)
     const t = tagMap(descriptors.get(id) ?? []);
     const ticker = clean(t.ticker, 32) || "ASSET";
     const contentType = clean(t["content-type"], 128);
+    const kind = collectibleKind(contentType);
+    const description = clean(t.description, 1000);
     const collection = clean(t["base-collection"], 128);
     const collectionId = PROCESS_ID.test(collection) ? collection : undefined;
     const collectionName = collectionId
@@ -127,7 +129,9 @@ export async function discoverCollectibles(options: DiscoverCollectiblesOptions)
       name: clean(t.name, 128) || clean(t.ticker, 32) || "Unnamed asset",
       ticker,
       ...(contentType ? { contentType } : {}),
-      ...(contentType.toLowerCase().startsWith("image/") ? { imageUrl: `${gateway}/${id}` } : {}),
+      ...(kind === "image" ? { imageUrl: `${gateway}/${id}` } : {}),
+      ...(kind === "video" ? { videoUrl: `${gateway}/${id}` } : {}),
+      ...(description ? { description } : {}),
       ...(collectionId ? { collectionId, collectionName } : {}),
     };
   });

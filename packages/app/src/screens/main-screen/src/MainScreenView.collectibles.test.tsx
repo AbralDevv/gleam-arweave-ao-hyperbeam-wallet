@@ -154,16 +154,48 @@ describe("Collectibles tab", () => {
 });
 
 describe("CollectibleDetailView", () => {
-  it("shows the details, copies the process id and links to Lunar", () => {
-    const writeText = vi.fn(async () => {});
-    Object.assign(navigator, { clipboard: { writeText } });
+  it("shows the details and links to Lunar, with no separate process id row", () => {
     render(<CollectibleDetailView collectible={FROG} onBack={vi.fn()} />);
 
     expect(screen.getByRole("heading", { name: "Frog #1" })).toBeTruthy();
     expect(screen.getByText("Frogs")).toBeTruthy();
     expect(screen.getByRole("link", { name: "View on Lunar" }).getAttribute("href")).toBe(`https://lunar.arweave.net/#/explorer/${FROG.id}/data`);
-    fireEvent.click(screen.getByRole("button", { name: "Copy process ID" }));
-    expect(writeText).toHaveBeenCalledWith(FROG.id);
+    expect(screen.queryByText("Process ID")).toBeNull();
+  });
+
+  it("shows the description, and labels a collectible without a preview by its kind", () => {
+    render(<CollectibleDetailView collectible={{ ...DOC, description: "A short note." }} onBack={vi.fn()} />);
+    expect(screen.getByText("A short note.")).toBeTruthy();
+    expect(screen.getByTestId("collectible-placeholder").textContent).toBe("Document");
+  });
+
+  it("clamps a long description and toggles it with more and Show less", () => {
+    const scroll = vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(200);
+    const client = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(60);
+    try {
+      render(<CollectibleDetailView collectible={{ ...DOC, description: "A long story." }} onBack={vi.fn()} />);
+      expect(screen.getByText("A long story.").className).toContain("line-clamp-3");
+      fireEvent.click(screen.getByRole("button", { name: "more" }));
+      expect(screen.getByText("A long story.").className).not.toContain("line-clamp-3");
+      fireEvent.click(screen.getByRole("button", { name: "Show less" }));
+      expect(screen.getByText("A long story.").className).toContain("line-clamp-3");
+    } finally {
+      scroll.mockRestore();
+      client.mockRestore();
+    }
+  });
+
+  it("offers no toggle when the description fits", () => {
+    render(<CollectibleDetailView collectible={{ ...DOC, description: "Short." }} onBack={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "more" })).toBeNull();
+  });
+
+  it("plays a video collectible", () => {
+    const clip: Collectible = { id: "clip1", name: "Clip", ticker: "ASSET", contentType: "video/mp4", videoUrl: "https://arweave.net/clip1" };
+    const { container } = render(<CollectibleDetailView collectible={clip} onBack={vi.fn()} />);
+    const video = container.querySelector("video")!;
+    expect(video.getAttribute("src")).toBe("https://arweave.net/clip1");
+    expect(video.autoplay).toBe(true);
   });
 
   it("goes back, and shows Send only when a handler is wired", () => {

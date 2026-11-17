@@ -1,12 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { Collectible } from "@gleam/core";
 import { CollectibleThumbnail } from "@gleam/ui/src/components/wallet/index.ts";
-import { truncateAddress } from "@gleam/ui/src/format/truncate-address.ts";
 import { useT } from "../../../i18n";
+import { collectibleKindLabel } from "./CollectiblesGallery";
 import { Button } from "@gleam/ui/src/primitives/button.tsx";
 import { ScreenHeader } from "@gleam/ui/src/primitives/screen-header.tsx";
 import { ScreenFooter } from "@gleam/ui/src/primitives/screen-footer.tsx";
-import { CheckIcon, CopyIcon } from "@gleam/ui/src/primitives/copy-icons.tsx";
 
 export interface CollectibleDetailViewProps {
   collectible: Collectible;
@@ -17,54 +16,40 @@ export interface CollectibleDetailViewProps {
 
 export function CollectibleDetailView({ collectible, onBack, onSend }: CollectibleDetailViewProps) {
   const t = useT();
-  const [copied, setCopied] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => () => clearTimeout(timer.current), []);
-
-  const copyId = () => {
-    void navigator.clipboard?.writeText(collectible.id);
-    setCopied(true);
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div className="flex min-h-full flex-col">
       <ScreenHeader title={t("collectibles.detailTitle")} onBack={onBack} />
 
       <div className="flex flex-1 flex-col gap-4 px-6 phone:px-5 pb-6 phone:pb-0 pt-4">
-        <CollectibleThumbnail name={collectible.name} imageUrl={collectible.imageUrl} className="mx-auto max-w-[200px]" />
+        <CollectibleThumbnail
+          name={collectible.name}
+          imageUrl={collectible.imageUrl}
+          videoUrl={collectible.videoUrl}
+          play
+          kindLabel={collectibleKindLabel(t, collectible.contentType)}
+          className="rounded-2xl"
+        />
 
         <div className="flex flex-col gap-0.5 text-center">
-          <h2 className="line-clamp-2 break-words text-h3 font-semibold" title={collectible.name}>{collectible.name}</h2>
+          <div className="line-clamp-2 break-words text-h3 font-semibold">
+            <h2 className="inline" title={collectible.name}>
+              {collectible.name}
+            </h2>
+            <a
+              href={`https://lunar.arweave.net/#/explorer/${encodeURIComponent(collectible.id)}/data`}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={t("collectibles.viewOnLunar")}
+              title={t("collectibles.viewOnLunar")}
+              className="ml-1.5 inline-flex h-7 w-7 items-center justify-center rounded-md align-middle text-muted hover:bg-mist hover:text-foreground"
+            >
+              <ExternalLinkIcon />
+            </a>
+          </div>
           {collectible.collectionName ? <p className="text-label text-muted">{collectible.collectionName}</p> : null}
         </div>
 
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-label text-muted">{t("collectibles.processId")}</span>
-          <span className="flex items-center gap-1.5">
-            <span className="font-mono text-label" title={collectible.id}>
-              {truncateAddress(collectible.id, 6)}
-            </span>
-            <button
-              type="button"
-              onClick={copyId}
-              aria-label={copied ? t("collectibles.processIdCopied") : t("collectibles.copyProcessId")}
-              className={`flex h-7 w-7 items-center justify-center rounded-md hover:bg-mist ${copied ? "text-positive" : "text-muted hover:text-foreground"}`}
-            >
-              {copied ? <CheckIcon /> : <CopyIcon />}
-            </button>
-          </span>
-        </div>
-
-        <a
-          href={`https://lunar.arweave.net/#/explorer/${encodeURIComponent(collectible.id)}/data`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-label font-medium text-muted underline decoration-faint underline-offset-2 hover:text-foreground"
-        >
-          {t("collectibles.viewOnLunar")}
-        </a>
+        {collectible.description ? <CollectibleDescription key={collectible.id} text={collectible.description} /> : null}
 
         {onSend ? (
           <ScreenFooter className="gap-0 pt-2">
@@ -76,3 +61,47 @@ export function CollectibleDetailView({ collectible, onBack, onSend }: Collectib
   );
 }
 
+/** Three lines, with a toggle only when the text runs past them. */
+function CollectibleDescription({ text }: { text: string }) {
+  const t = useT();
+  const [expanded, setExpanded] = useState(false);
+  const [clipped, setClipped] = useState(false);
+  const body = useRef<HTMLParagraphElement>(null);
+
+  useLayoutEffect(() => {
+    const element = body.current;
+    if (element && !expanded) setClipped(element.scrollHeight > element.clientHeight);
+  }, [text, expanded]);
+
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <p ref={body} className={`whitespace-pre-line break-words text-body text-muted ${expanded ? "" : "line-clamp-3"}`}>
+        {text}
+      </p>
+      {clipped ? (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((open) => !open)}
+          className="text-label font-medium text-foreground hover:underline"
+        >
+          {expanded ? t("collectibles.showLess") : t("collectibles.showMore")}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function ExternalLinkIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M11 4h5v5M16 4l-7 7M14 11.5V15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h3.5"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
