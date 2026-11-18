@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { fakeAppPlatform, memoryQueryCache, renderWithPlatform as render } from "../app-platform/testing";
 import type { ApprovalRequest, RuntimePort, ThemeSettings, WalletState } from "@gleam/core";
 import { ApprovalRoot } from "./ApprovalRoot";
@@ -449,6 +449,69 @@ describe("ApprovalRoot transfer review", () => {
     expect(screen.getByText("Main")).toBeTruthy();
     expect((await screen.findByText("Balance after")).nextElementSibling?.textContent).toBe("7 TOK");
     expect(screen.getByRole("button", { name: "Sign" }).className).not.toContain("bg-warning");
+  });
+
+  it("diffs the known address against the batch recipient flagged for it, not the first", async () => {
+    // The known address shares its first chunk with the first recipient
+    // and every later chunk with the flagged second one, so the chunk
+    // marks in the warning say which recipient it was diffed against.
+    const KNOWN = `WXYZ${"m".repeat(35)}1234`;
+    const FIRST_RECIPIENT = `WXYZ${"q".repeat(39)}`;
+    const FLAGGED_RECIPIENT = `WXYA${"m".repeat(35)}1234`;
+    const BATCH_REQUEST: ApprovalRequest = {
+      requestId: "req-batch",
+      origin: "https://dapp.example",
+      kind: "batchSignDataItem",
+      preview: {
+        kind: "batchSignDataItem",
+        recipient: null,
+        amount: null,
+        fee: null,
+        token: null,
+        tokenDenomination: null,
+        tokenTicker: null,
+        decodedData: null,
+        tags: [],
+        payloadHash: "ab".repeat(32),
+        items: [FIRST_RECIPIENT, FLAGGED_RECIPIENT].map((recipient) => ({
+          decodedData: null,
+          tags: [{ name: "Action", value: "Transfer" }],
+          target: TOKEN,
+          payloadHash: "cd".repeat(32),
+          transfer: { token: TOKEN, recipient, amount: "3000000", tokenDenomination: 6, tokenTicker: "TOK" },
+        })),
+      },
+      createdAt: 0,
+    };
+    const send = vi.fn(async (message: { type: string; payload: unknown }) => {
+      if (message.type === "getApproval") return BATCH_REQUEST;
+      if (message.type === "getState") return UNLOCKED_STATE;
+      if (message.type === "assessRecipient") {
+        const { recipient } = message.payload as { recipient: string };
+        return recipient === FLAGGED_RECIPIENT
+          ? { firstTime: true, lookalikeOf: KNOWN }
+          : { firstTime: false, lookalikeOf: null };
+      }
+      if (message.type === "getBalance") return "0";
+      if (message.type === "getTokenBalances") {
+        return [{ address: "addr-1", processId: TOKEN, ticker: "TOK", denomination: 6, name: "Tok", quantity: "10000000" }];
+      }
+      if (message.type === "getPendingTransfers") return [];
+      throw new Error(`unexpected message ${message.type}`);
+    });
+
+    render(<ApprovalRoot armDelayMs={0} requestId="req-batch" runtime={fakeRuntime({ send: send as never })} />);
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toMatch(/phishing attempt/);
+    // The first chunk matches the first recipient but not the flagged
+    // one: it is marked only when the diff runs against the flagged one.
+    expect(within(alert).getByText("WXYZ").className).toContain("bg-positive/10");
+    // The later chunks match the flagged recipient, so none is marked;
+    // diffed against the first recipient every one of them would be.
+    for (const chunk of within(alert).getAllByText("mmmm")) {
+      expect(chunk.className).not.toContain("bg-positive/10");
+    }
   });
 });
 

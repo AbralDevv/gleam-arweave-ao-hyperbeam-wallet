@@ -94,7 +94,7 @@ export function TransferReview({
     <div className={`${GUTTER} pt-4`}>
       <RecipientWarning
         firstTime={risk?.firstTime ?? false}
-        recipient={first.recipient}
+        recipient={risk?.lookalikeRecipient ?? first.recipient}
         tone={warned ? "risk" : "caution"}
         lookalikeOf={lookalikeOf}
         lookalikeAvatarSvg={lookalikeOf ? identity.avatarSvg(lookalikeOf) : undefined}
